@@ -9,13 +9,8 @@ jobs:
     - name: Cloud Run
       uses: stefda/action-cloud-run@v1.0
       with:
-        # Name of the docker image
-        image: 
-        # Name of the service in Cloud Run
-        service: 
-        # GCP project
-        project: 
-        # GCP region
-        region: 
-        # GCP service key with storage and run permissions
-        service key: 
+        image: gcr.io/secretmessage-2/hello
+        service: hello
+        project: secretmessage-2
+        region: us-central1
+        service key: ${{ secrets.GCLOUD_AUTH }}
