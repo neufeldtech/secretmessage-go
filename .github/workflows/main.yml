@@ -1,0 +1,21 @@
+name: CI
+
+on: [push]
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Cloud Run
+      uses: stefda/action-cloud-run@v1.0
+      with:
+        # Name of the docker image
+        image: 
+        # Name of the service in Cloud Run
+        service: 
+        # GCP project
+        project: 
+        # GCP region
+        region: 
+        # GCP service key with storage and run permissions
+        service key: 
