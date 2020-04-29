@@ -5,9 +5,9 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/neufeldtech/smsg-go/pkg/handlers"
 	"github.com/neufeldtech/smsg-go/pkg/middleware"
 	"github.com/neufeldtech/smsg-go/pkg/redis"
+	"github.com/neufeldtech/smsg-go/pkg/secretmessage"
 
 	"os"
 )
@@ -15,12 +15,14 @@ import (
 func main() {
 
 	redis.Init()
+	secretmessage.InitSlackClient()
 
 	r := gin.Default()
 	r.Use(gin.Logger())
 	r.Use(middleware.ValidateSignature())
 
-	r.POST("/slash", handlers.HandleSlash)
+	r.POST("/slash", secretmessage.HandleSlash)
+	r.POST("/interactive", secretmessage.HandleInteractive)
 
 	port, err := strconv.ParseInt(os.Getenv("PORT"), 10, 64)
 	if err != nil {

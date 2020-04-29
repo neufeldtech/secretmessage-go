@@ -1,14 +1,14 @@
 package middleware
 
 import (
-	"io"
+	"bytes"
 	"io/ioutil"
 	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/nlopes/slack"
 	"github.com/prometheus/common/log"
+	"github.com/slack-go/slack"
 )
 
 var (
@@ -23,15 +23,26 @@ func ValidateSignature() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Error verifying secret"})
 			return
 		}
-		c.Request.Body = ioutil.NopCloser(io.TeeReader(c.Request.Body, &verifier))
-		_, err = slack.SlashCommandParse(c.Request)
+
+		body, err := ioutil.ReadAll(c.Request.Body)
 		if err != nil {
-			log.Error(err)
+			log.Errorf("error verifying signature: %v", err)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Error verifying secret"})
 			return
 		}
+
+		c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+
+		_, err = verifier.Write(body)
+		if err != nil {
+			log.Errorf("error verifying signature: %v", err)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Error verifying secret"})
+			return
+		}
+
 		if err = verifier.Ensure(); err != nil {
 			log.Error(err)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"status": "Signature not valid"})
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"status": "Signature not valid"})
 			return
 		}
 		c.Next()
