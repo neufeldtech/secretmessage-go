@@ -122,7 +122,16 @@ func HandleInteractive(c *gin.Context) {
 		secretEncrypted, err := r.Get(hash(secretID)).Result()
 		if err != nil {
 			log.Error(err)
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Error with the stuffs"})
+			response := slack.Message{
+				Msg: slack.Msg{
+					ResponseType:   slack.ResponseTypeEphemeral,
+					DeleteOriginal: true,
+					Text:           ":x: Sorry, an error occurred attempting to retrieve secret",
+				},
+			}
+			responseBytes, err := json.Marshal(response)
+			log.Error(err)
+			c.Data(http.StatusOK, gin.MIMEJSON, responseBytes)
 			return
 		}
 
