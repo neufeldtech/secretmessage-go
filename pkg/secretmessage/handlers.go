@@ -48,9 +48,25 @@ func HandleSlash(c *gin.Context) {
 		}
 
 		secretID := shortuuid.New()
+		secretEncrypted, err := encrypt(s.Text, secretID)
+		if err != nil {
+			log.Errorf("error storing secretID %v in redis: %v", secretID, err)
+			response = slack.Message{
+				Msg: slack.Msg{
+					ResponseType: slack.ResponseTypeEphemeral,
+					Text:         ":x: Sorry, an error occurred attempting to create secret",
+				},
+			}
+			responseBytes, err := json.Marshal(response)
+			if err != nil {
+				log.Errorf("error marshalling response: %v", err)
+			}
+			c.Data(http.StatusOK, gin.MIMEJSON, responseBytes)
+			return
+		}
 
-		// err = r.Set(hash(secretID), encrypt(s.Text, "jordan"), 0).Err()
-		err = r.Set(hash(secretID), s.Text, 0).Err()
+		err = r.Set(hash(secretID), secretEncrypted, 0).Err()
+		// err = r.Set(hash(secretID), s.Text, 0).Err()
 		log.Infof("secret id: %v", secretID)
 
 		if err != nil {
@@ -135,8 +151,22 @@ func HandleInteractive(c *gin.Context) {
 			return
 		}
 
-		// secret := decrypt(secretEncrypted, "jordan")
-		secret := secretEncrypted
+		secretDecrypted, err := decrypt(secretEncrypted, secretID)
+		if err != nil {
+			log.Errorf("error storing secretID %v in redis: %v", secretID, err)
+			response := slack.Message{
+				Msg: slack.Msg{
+					ResponseType: slack.ResponseTypeEphemeral,
+					Text:         ":x: Sorry, an error occurred attempting to retrieve secret",
+				},
+			}
+			responseBytes, err := json.Marshal(response)
+			if err != nil {
+				log.Errorf("error marshalling response: %v", err)
+			}
+			c.Data(http.StatusOK, gin.MIMEJSON, responseBytes)
+			return
+		}
 
 		response := slack.Message{
 			Msg: slack.Msg{
@@ -145,7 +175,7 @@ func HandleInteractive(c *gin.Context) {
 				Attachments: []slack.Attachment{{
 					Title:      "Secret message",
 					Fallback:   "Secret message",
-					Text:       secret,
+					Text:       secretDecrypted,
 					CallbackID: fmt.Sprintf("delete_secret:%v", secretID),
 					Color:      "#6D5692",
 					Footer:     "The above message is only visible to you and will disappear when your Slack client reloads. To remove it immediately, click the button below:",

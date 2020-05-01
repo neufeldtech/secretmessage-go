@@ -15,43 +15,51 @@ func hash(s string) string {
 	return hex.EncodeToString(hashBytes[:])
 }
 
-func createHash(key string) string {
+func genKey(key string) []byte {
 	hasher := md5.New()
 	hasher.Write([]byte(key))
-	return hex.EncodeToString(hasher.Sum(nil))
+	return hasher.Sum(nil)
+}
+func decrypt(input string, passphrase string) (string, error) {
+	var result string
+	key := genKey(passphrase)
+	ciphertext, err := hex.DecodeString(input)
+	if err != nil {
+		return result, err
+	}
+	c, err := aes.NewCipher(key)
+	if err != nil {
+		return result, err
+	}
+	gcm, err := cipher.NewGCM(c)
+	if err != nil {
+		return result, err
+	}
+	nonceSize := gcm.NonceSize()
+	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
+	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return result, err
+	}
+	return string(plaintext), nil
 }
 
-func encrypt(input string, passphrase string) string {
-	data := []byte(input)
-	block, _ := aes.NewCipher([]byte(createHash(passphrase)))
-	gcm, err := cipher.NewGCM(block)
+func encrypt(input string, passphrase string) (string, error) {
+	var result string
+	key := genKey(passphrase)
+	c, err := aes.NewCipher(key)
 	if err != nil {
-		panic(err.Error())
+		return result, err
+	}
+
+	gcm, err := cipher.NewGCM(c)
+	if err != nil {
+		return result, err
 	}
 	nonce := make([]byte, gcm.NonceSize())
 	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		panic(err.Error())
+		return result, err
 	}
-	ciphertext := gcm.Seal(nonce, nonce, data, nil)
-	return hex.EncodeToString(ciphertext)
-}
-
-func decrypt(input string, passphrase string) string {
-	data := []byte(input)
-	key := []byte(createHash(passphrase))
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		panic(err.Error())
-	}
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		panic(err.Error())
-	}
-	nonceSize := gcm.NonceSize()
-	nonce, ciphertext := data[:nonceSize], data[nonceSize:]
-	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
-	if err != nil {
-		panic(err.Error())
-	}
-	return hex.EncodeToString(plaintext)
+	ciphertext := hex.EncodeToString(gcm.Seal(nonce, nonce, []byte(input), nil))
+	return ciphertext, nil
 }
