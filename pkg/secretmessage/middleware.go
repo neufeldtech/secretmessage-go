@@ -1,23 +1,18 @@
-package middleware
+package secretmessage
 
 import (
 	"bytes"
 	"io/ioutil"
 	"net/http"
-	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/common/log"
 	"github.com/slack-go/slack"
 )
 
-var (
-	signingSecret, _ = os.LookupEnv("SLACK_SIGNING_SECRET")
-)
-
-func ValidateSignature() gin.HandlerFunc {
+func ValidateSignature(config Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		verifier, err := slack.NewSecretsVerifier(c.Request.Header, signingSecret)
+		verifier, err := slack.NewSecretsVerifier(c.Request.Header, config.SigningSecret)
 		if err != nil {
 			log.Errorf("error verifying signature: %v", err)
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Error verifying secret"})

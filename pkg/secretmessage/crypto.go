@@ -15,14 +15,14 @@ func hash(s string) string {
 	return hex.EncodeToString(hashBytes[:])
 }
 
-func genKey(key string) []byte {
+func deriveCryptoKey(key string) []byte {
 	hasher := md5.New()
 	hasher.Write([]byte(key))
 	return hasher.Sum(nil)
 }
 func decrypt(input string, passphrase string) (string, error) {
 	var result string
-	key := genKey(passphrase)
+	key := deriveCryptoKey(passphrase)
 	ciphertext, err := hex.DecodeString(input)
 	if err != nil {
 		return result, err
@@ -46,7 +46,7 @@ func decrypt(input string, passphrase string) (string, error) {
 
 func encrypt(input string, passphrase string) (string, error) {
 	var result string
-	key := genKey(passphrase)
+	key := deriveCryptoKey(passphrase)
 	c, err := aes.NewCipher(key)
 	if err != nil {
 		return result, err

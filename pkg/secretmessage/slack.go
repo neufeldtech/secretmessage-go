@@ -6,8 +6,8 @@ var (
 	api *slack.Client
 )
 
-func InitSlackClient() {
-	api = slack.New("anonymous", slack.OptionDebug(true))
+func InitSlackClient(config Config) {
+	api = slack.New(config.SlackToken, slack.OptionDebug(true))
 }
 func SlackClient() *slack.Client {
 	return api

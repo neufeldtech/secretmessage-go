@@ -8,13 +8,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/lithammer/shortuuid"
-	"github.com/neufeldtech/smsg-go/pkg/redis"
 	"github.com/prometheus/common/log"
 	"github.com/slack-go/slack"
 )
 
 func HandleSlash(c *gin.Context) {
-	r := redis.GetClient()
+	r := GetRedisClient()
 	s, err := slack.SlashCommandParse(c.Request)
 	if err != nil {
 		log.Error(err)
@@ -113,7 +112,7 @@ func HandleSlash(c *gin.Context) {
 }
 
 func HandleInteractive(c *gin.Context) {
-	r := redis.GetClient()
+	r := GetRedisClient()
 
 	var err error
 	if err != nil {
