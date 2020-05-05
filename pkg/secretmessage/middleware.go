@@ -12,6 +12,11 @@ import (
 
 func ValidateSignature(config Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if config.SkipSkignatureValidation {
+			log.Warn("SIGNATURE VALIDATION IS DISABLED. THIS IS NOT RECOMMENDED")
+			return
+		}
+		log.Info(c.Request.Header)
 		verifier, err := slack.NewSecretsVerifier(c.Request.Header, config.SigningSecret)
 		if err != nil {
 			log.Errorf("error verifying signature: %v", err)

@@ -20,10 +20,13 @@ func HandleSlash(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Bad Request"})
 		return
 	}
-
+	// log.Info(c.Request.Header)
+	// log.Info("JORDAAN")
+	// fmt.Println(c.Request.Body)
 	switch s.Command {
 	case "/secret":
-
+		log.Info("MAKING A SECRET")
+		log.Info(s)
 		var response slack.Message
 		if s.Text == "" {
 			response = slack.Message{

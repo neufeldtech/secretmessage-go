@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/gin-gonic/gin"
 	"github.com/neufeldtech/smsg-go/pkg/secretmessage"
 
 	"os"
@@ -27,18 +26,6 @@ func resolvePort() int64 {
 	return port64
 }
 
-func setupRouter(config secretmessage.Config) *gin.Engine {
-	secretmessage.InitRedis(config)
-	secretmessage.InitSlackClient(config)
-	r := gin.Default()
-	r.Use(gin.Logger())
-	r.Use(secretmessage.ValidateSignature(config))
-
-	r.POST("/slash", secretmessage.HandleSlash)
-	r.POST("/interactive", secretmessage.HandleInteractive)
-	return r
-}
-
 func main() {
 	config := secretmessage.Config{
 		Port:          resolvePort(),
@@ -47,7 +34,7 @@ func main() {
 		RedisPassword: os.Getenv("REDIS_PASS"),
 		SigningSecret: os.Getenv("SLACK_SIGNING_SECRET"),
 	}
-	r := setupRouter(config)
+	r := secretmessage.SetupRouter(config)
 
 	r.Run(fmt.Sprintf("0.0.0.0:%v", config.Port)) // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
 }
