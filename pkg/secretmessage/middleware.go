@@ -12,7 +12,7 @@ import (
 
 func ValidateSignature(config Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if config.SkipSkignatureValidation {
+		if config.SkipSignatureValidation {
 			log.Warn("SIGNATURE VALIDATION IS DISABLED. THIS IS NOT RECOMMENDED")
 			return
 		}

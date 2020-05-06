@@ -54,9 +54,9 @@ func TestHandleSlash(t *testing.T) {
 	}
 	// Grab our router
 	config := Config{
-		RedisAddress:             s.Addr(),
-		SigningSecret:            "secret",
-		SkipSkignatureValidation: true,
+		RedisAddress:            s.Addr(),
+		SigningSecret:           "secret",
+		SkipSignatureValidation: true,
 	}
 	router := SetupRouter(config)
 	// Perform a GET request with that handler.
@@ -95,9 +95,9 @@ func TestHandleInteractiveGetSecret(t *testing.T) {
 	defer s.Close()
 	// Grab our router
 	config := Config{
-		RedisAddress:             s.Addr(),
-		SigningSecret:            "secret",
-		SkipSkignatureValidation: true,
+		RedisAddress:            s.Addr(),
+		SigningSecret:           "secret",
+		SkipSignatureValidation: true,
 	}
 	router := SetupRouter(config)
 
@@ -150,9 +150,9 @@ func TestHandleInteractiveDeleteSecret(t *testing.T) {
 	defer s.Close()
 	// Grab our router
 	config := Config{
-		RedisAddress:             s.Addr(),
-		SigningSecret:            "secret",
-		SkipSkignatureValidation: true,
+		RedisAddress:            s.Addr(),
+		SigningSecret:           "secret",
+		SkipSignatureValidation: true,
 	}
 	router := SetupRouter(config)
 

@@ -10,6 +10,7 @@ import (
 	"github.com/lithammer/shortuuid"
 	"github.com/prometheus/common/log"
 	"github.com/slack-go/slack"
+	"golang.org/x/oauth2"
 )
 
 func HandleSlash(c *gin.Context) {
@@ -112,6 +113,31 @@ func HandleSlash(c *gin.Context) {
 		c.Data(http.StatusOK, gin.MIMEPlain, nil)
 		return
 	}
+}
+
+func HandleOauthBegin(c *gin.Context) {
+	state := shortuuid.New()
+	url := GetConfig().OauthConfig.AuthCodeURL(state, oauth2.AccessTypeOnline)
+
+	c.SetCookie("state", state, 0, "", "/", false, true)
+	c.Redirect(302, url)
+}
+
+func HandleOauthCallback(c *gin.Context) {
+	stateQuery := c.Query("state")
+	stateCookie, err := c.Cookie("state")
+	if err != nil {
+		log.Error("error retrieving state cookie from request: %v", err)
+		c.Redirect(302, "https://secretmessage.xyz/error")
+		return
+	}
+	if stateCookie != stateQuery {
+		log.Error("error validating state cookie with state query param")
+		c.Redirect(302, "https://secretmessage.xyz/error")
+		return
+	}
+
+	c.Redirect(302, "https://secretmessage.xyz/success")
 }
 
 func HandleInteractive(c *gin.Context) {
