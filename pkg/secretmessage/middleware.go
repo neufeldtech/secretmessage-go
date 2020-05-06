@@ -16,7 +16,6 @@ func ValidateSignature(config Config) gin.HandlerFunc {
 			log.Warn("SIGNATURE VALIDATION IS DISABLED. THIS IS NOT RECOMMENDED")
 			return
 		}
-		log.Info(c.Request.Header)
 		verifier, err := slack.NewSecretsVerifier(c.Request.Header, config.SigningSecret)
 		if err != nil {
 			log.Errorf("error verifying signature: %v", err)
@@ -32,7 +31,6 @@ func ValidateSignature(config Config) gin.HandlerFunc {
 		}
 
 		c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(body))
-
 		_, err = verifier.Write(body)
 		if err != nil {
 			log.Errorf("error verifying signature: %v", err)

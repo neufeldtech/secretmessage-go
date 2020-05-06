@@ -1,14 +1,16 @@
 package secretmessage
 
-import "golang.org/x/oauth2"
+import (
+	"github.com/go-redis/redis"
+	"golang.org/x/oauth2"
+)
 
 var config Config
 
 type Config struct {
 	SkipSignatureValidation bool
 	Port                    int64
-	RedisAddress            string
-	RedisPassword           string
+	RedisOptions            *redis.Options
 	SlackToken              string
 	SigningSecret           string
 	OauthConfig             *oauth2.Config

@@ -7,11 +7,7 @@ import (
 var c *redis.Client
 
 func InitRedis(config Config) {
-	c = redis.NewClient(&redis.Options{
-		Addr:     config.RedisAddress,
-		Password: config.RedisPassword,
-		DB:       0, // use default DB
-	})
+	c = redis.NewClient(config.RedisOptions)
 }
 func GetRedisClient() *redis.Client {
 	return c

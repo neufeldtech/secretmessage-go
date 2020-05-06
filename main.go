@@ -4,14 +4,20 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/go-redis/redis"
 	"github.com/neufeldtech/smsg-go/pkg/secretmessage"
+	"github.com/prometheus/common/log"
 	"golang.org/x/oauth2"
 
 	"os"
 )
 
 var (
-	defaultPort int64 = 8080
+	defaultPort                 int64 = 8080
+	slackSigningSecretConfigKey       = "slackSigningSecret"
+	slackClientIDConfigKey            = "slackClientID"
+	slackClientSecretConfigKey        = "slackClientSecret"
+	slackCallbackURLConfigKey         = "slackCallbackURL"
 )
 
 func resolvePort() int64 {
@@ -28,16 +34,31 @@ func resolvePort() int64 {
 }
 
 func main() {
+	configMap := map[string]string{
+		slackSigningSecretConfigKey: os.Getenv("SLACK_SIGNING_SECRET"),
+		slackClientIDConfigKey:      os.Getenv("SLACK_CLIENT_ID"),
+		slackClientSecretConfigKey:  os.Getenv("SLACK_CLIENT_SECRET"),
+		slackCallbackURLConfigKey:   os.Getenv("SLACK_CALLBACK_URL"),
+	}
+	for k, v := range configMap {
+		if v == "" {
+			log.Fatalf("error initializaing config. key %v was not set", k)
+		}
+	}
+	redisOptions, err := redis.ParseURL(os.Getenv("REDIS_URL"))
+	if err != nil {
+		log.Fatalf("error parsing REDIS_URL: %v", err)
+	}
+
 	secretmessage.SetConfig(secretmessage.Config{
 		Port:          resolvePort(),
-		RedisAddress:  os.Getenv("REDIS_ADDR"),
+		RedisOptions:  redisOptions,
 		SlackToken:    "",
-		RedisPassword: os.Getenv("REDIS_PASS"),
-		SigningSecret: os.Getenv("SLACK_SIGNING_SECRET"),
+		SigningSecret: configMap[slackSigningSecretConfigKey],
 		OauthConfig: &oauth2.Config{
-			ClientID:     os.Getenv("SLACK_CLIENT_ID"),
-			ClientSecret: os.Getenv("SLACK_CLIENT_SECRET"),
-			RedirectURL:  os.Getenv("SLACK_CALLBACK_URL"),
+			ClientID:     configMap[slackClientIDConfigKey],
+			ClientSecret: configMap[slackClientSecretConfigKey],
+			RedirectURL:  os.Getenv(slackCallbackURLConfigKey),
 			Scopes:       []string{"commands", "chat:write:bot"},
 			Endpoint: oauth2.Endpoint{
 				AuthURL:  "https://slack.com/oauth/authorize",
@@ -47,6 +68,6 @@ func main() {
 	})
 
 	r := secretmessage.SetupRouter(secretmessage.GetConfig())
-
+	log.Infof("Booted and listening on port %v", secretmessage.GetConfig().Port)
 	r.Run(fmt.Sprintf("0.0.0.0:%v", secretmessage.GetConfig().Port)) // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
 }

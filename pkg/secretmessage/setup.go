@@ -9,8 +9,6 @@ func SetupRouter(config Config) *gin.Engine {
 	InitSlackClient(config)
 	r := gin.Default()
 
-	r.Use(gin.Logger())
-
 	r.GET("/auth/slack", HandleOauthBegin)
 	r.GET("/auth/slack/callback", HandleOauthCallback)
 

@@ -13,7 +13,6 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/lithammer/shortuuid"
-	"github.com/prometheus/common/log"
 	"github.com/slack-go/slack"
 
 	"github.com/stretchr/testify/assert"
@@ -130,7 +129,6 @@ func TestHandleInteractiveGetSecret(t *testing.T) {
 
 	assert.Nil(t, err)
 
-	log.Infof("%+v", response)
 	if len(response.Attachments) < 1 {
 		assert.FailNow(t, "Expected at least 1 response.Attachments")
 	}
@@ -183,6 +181,5 @@ func TestHandleInteractiveDeleteSecret(t *testing.T) {
 	b, err := ioutil.ReadAll(w.Body)
 	err = json.Unmarshal(b, &response)
 	assert.Nil(t, err)
-	log.Infof("%+v", response)
 	assert.Equal(t, true, response.DeleteOriginal)
 }

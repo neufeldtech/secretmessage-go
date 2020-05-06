@@ -21,13 +21,8 @@ func HandleSlash(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Bad Request"})
 		return
 	}
-	// log.Info(c.Request.Header)
-	// log.Info("JORDAAN")
-	// fmt.Println(c.Request.Body)
 	switch s.Command {
 	case "/secret":
-		log.Info("MAKING A SECRET")
-		log.Info(s)
 		var response slack.Message
 		if s.Text == "" {
 			response = slack.Message{
@@ -69,8 +64,6 @@ func HandleSlash(c *gin.Context) {
 		}
 
 		err = r.Set(hash(secretID), secretEncrypted, 0).Err()
-		// err = r.Set(hash(secretID), s.Text, 0).Err()
-		log.Infof("secret id: %v", secretID)
 
 		if err != nil {
 			log.Errorf("error storing secretID %v in redis: %v", secretID, err)
@@ -162,7 +155,6 @@ func HandleInteractive(c *gin.Context) {
 	switch callbackType {
 	case "get_secret":
 		secretID := strings.ReplaceAll(i.CallbackID, "get_secret:", "")
-		log.Infof("attempting to get secret id: %v", secretID)
 		secretEncrypted, err := r.Get(hash(secretID)).Result()
 		if err != nil {
 			log.Error(err)
