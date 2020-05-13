@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/go-redis/redis"
 	"github.com/lithammer/shortuuid"
 	"github.com/slack-go/slack"
 
@@ -53,7 +54,9 @@ func TestHandleSlash(t *testing.T) {
 	}
 	// Grab our router
 	config := Config{
-		RedisAddress:            s.Addr(),
+		RedisOptions: &redis.Options{
+			Addr: s.Addr(),
+		},
 		SigningSecret:           "secret",
 		SkipSignatureValidation: true,
 	}
@@ -94,7 +97,9 @@ func TestHandleInteractiveGetSecret(t *testing.T) {
 	defer s.Close()
 	// Grab our router
 	config := Config{
-		RedisAddress:            s.Addr(),
+		RedisOptions: &redis.Options{
+			Addr: s.Addr(),
+		},
 		SigningSecret:           "secret",
 		SkipSignatureValidation: true,
 	}
@@ -148,7 +153,9 @@ func TestHandleInteractiveDeleteSecret(t *testing.T) {
 	defer s.Close()
 	// Grab our router
 	config := Config{
-		RedisAddress:            s.Addr(),
+		RedisOptions: &redis.Options{
+			Addr: s.Addr(),
+		},
 		SigningSecret:           "secret",
 		SkipSignatureValidation: true,
 	}

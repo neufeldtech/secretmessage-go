@@ -120,7 +120,7 @@ func HandleOauthCallback(c *gin.Context) {
 	stateQuery := c.Query("state")
 	stateCookie, err := c.Cookie("state")
 	if err != nil {
-		log.Error("error retrieving state cookie from request: %v", err)
+		log.Errorf("error retrieving state cookie from request: %v", err)
 		c.Redirect(302, "https://secretmessage.xyz/error")
 		return
 	}
