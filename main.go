@@ -18,6 +18,7 @@ var (
 	slackClientIDConfigKey            = "slackClientID"
 	slackClientSecretConfigKey        = "slackClientSecret"
 	slackCallbackURLConfigKey         = "slackCallbackURL"
+	legacyCryptoKeyConfigKey          = "legacyCryptoKey"
 )
 
 func resolvePort() int64 {
@@ -39,6 +40,7 @@ func main() {
 		slackClientIDConfigKey:      os.Getenv("SLACK_CLIENT_ID"),
 		slackClientSecretConfigKey:  os.Getenv("SLACK_CLIENT_SECRET"),
 		slackCallbackURLConfigKey:   os.Getenv("SLACK_CALLBACK_URL"),
+		legacyCryptoKeyConfigKey:    os.Getenv("CRYPTO_KEY"),
 	}
 	for k, v := range configMap {
 		if v == "" {

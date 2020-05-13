@@ -166,14 +166,20 @@ func HandleInteractive(c *gin.Context) {
 				},
 			}
 			responseBytes, err := json.Marshal(response)
-			log.Error(err)
+			if err != nil {
+				log.Errorf("error marshalling response: %v", err)
+			}
 			c.Data(http.StatusOK, gin.MIMEJSON, responseBytes)
 			return
 		}
-
-		secretDecrypted, err := decrypt(secretEncrypted, secretID)
+		var secretDecrypted string
+		if strings.Contains(secretEncrypted, ":") {
+			secretDecrypted, err = decryptIV(secretEncrypted, config.LegacyCryptoKey)
+		} else {
+			secretDecrypted, err = decrypt(secretEncrypted, secretID)
+		}
 		if err != nil {
-			log.Errorf("error storing secretID %v in redis: %v", secretID, err)
+			log.Errorf("error retrieving secretID %v from redis: %v", secretID, err)
 			response := slack.Message{
 				Msg: slack.Msg{
 					ResponseType: slack.ResponseTypeEphemeral,

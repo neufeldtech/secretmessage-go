@@ -13,6 +13,7 @@ type Config struct {
 	RedisOptions            *redis.Options
 	SlackToken              string
 	SigningSecret           string
+	LegacyCryptoKey         string
 	OauthConfig             *oauth2.Config
 }
 
