@@ -112,7 +112,7 @@ func HandleOauthBegin(c *gin.Context) {
 	state := shortuuid.New()
 	url := GetConfig().OauthConfig.AuthCodeURL(state, oauth2.AccessTypeOnline)
 
-	c.SetCookie("state", state, 0, "", "/", false, true)
+	c.SetCookie("state", state, 0, "", "", false, true)
 	c.Redirect(302, url)
 }
 
@@ -141,11 +141,6 @@ func HandleInteractive(c *gin.Context) {
 	r := GetRedisClient()
 
 	var err error
-	if err != nil {
-		log.Error(err)
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Bad Request"})
-		return
-	}
 
 	var i slack.InteractionCallback
 	payload := c.PostForm("payload")
@@ -155,6 +150,7 @@ func HandleInteractive(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Error with the stuffs"})
 		return
 	}
+	log.Info(i)
 	callbackType := strings.Split(i.CallbackID, ":")[0]
 	switch callbackType {
 	case "get_secret":
@@ -238,6 +234,7 @@ func HandleInteractive(c *gin.Context) {
 		}
 		c.Data(http.StatusOK, gin.MIMEJSON, responseBytes)
 	default:
+		log.Info("Hit the default case. bad things happened")
 		c.Data(http.StatusOK, gin.MIMEPlain, nil)
 	}
 }
