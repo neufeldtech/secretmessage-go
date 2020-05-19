@@ -19,6 +19,7 @@ var (
 	slackClientSecretConfigKey        = "slackClientSecret"
 	slackCallbackURLConfigKey         = "slackCallbackURL"
 	legacyCryptoKeyConfigKey          = "legacyCryptoKey"
+	appURLConfigKey                   = "appURL"
 )
 
 func resolvePort() int64 {
@@ -35,12 +36,14 @@ func resolvePort() int64 {
 }
 
 func main() {
+
 	configMap := map[string]string{
 		slackSigningSecretConfigKey: os.Getenv("SLACK_SIGNING_SECRET"),
 		slackClientIDConfigKey:      os.Getenv("SLACK_CLIENT_ID"),
 		slackClientSecretConfigKey:  os.Getenv("SLACK_CLIENT_SECRET"),
 		slackCallbackURLConfigKey:   os.Getenv("SLACK_CALLBACK_URL"),
 		legacyCryptoKeyConfigKey:    os.Getenv("CRYPTO_KEY"),
+		appURLConfigKey:             os.Getenv("APP_URL"),
 	}
 	for k, v := range configMap {
 		if v == "" {
@@ -57,6 +60,7 @@ func main() {
 		RedisOptions:  redisOptions,
 		SlackToken:    "",
 		SigningSecret: configMap[slackSigningSecretConfigKey],
+		AppURL:        configMap[appURLConfigKey],
 		OauthConfig: &oauth2.Config{
 			ClientID:     configMap[slackClientIDConfigKey],
 			ClientSecret: configMap[slackClientSecretConfigKey],
@@ -68,7 +72,7 @@ func main() {
 			},
 		},
 	})
-
+	go secretmessage.StayAwake(secretmessage.GetConfig())
 	r := secretmessage.SetupRouter(secretmessage.GetConfig())
 	log.Infof("Booted and listening on port %v", secretmessage.GetConfig().Port)
 	r.Run(fmt.Sprintf("0.0.0.0:%v", secretmessage.GetConfig().Port)) // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")

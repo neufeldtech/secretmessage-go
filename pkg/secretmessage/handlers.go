@@ -133,6 +133,10 @@ func HandleOauthCallback(c *gin.Context) {
 	c.Redirect(302, "https://secretmessage.xyz/success")
 }
 
+func HandleHealth(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"status": "UP"})
+}
+
 func HandleInteractive(c *gin.Context) {
 	r := GetRedisClient()
 

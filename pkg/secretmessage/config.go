@@ -14,6 +14,7 @@ type Config struct {
 	SlackToken              string
 	SigningSecret           string
 	LegacyCryptoKey         string
+	AppURL                  string
 	OauthConfig             *oauth2.Config
 }
 
