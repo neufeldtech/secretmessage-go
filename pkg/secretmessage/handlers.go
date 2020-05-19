@@ -150,7 +150,6 @@ func HandleInteractive(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Error with the stuffs"})
 		return
 	}
-	log.Info(i)
 	callbackType := strings.Split(i.CallbackID, ":")[0]
 	switch callbackType {
 	case "send_secret":
@@ -234,7 +233,7 @@ func HandleInteractive(c *gin.Context) {
 		}
 		c.Data(http.StatusOK, gin.MIMEJSON, responseBytes)
 	default:
-		log.Info("Hit the default case. bad things happened")
-		c.Data(http.StatusOK, gin.MIMEPlain, nil)
+		log.Error("Hit the default case. bad things happened")
+		c.Data(http.StatusInternalServerError, gin.MIMEPlain, nil)
 	}
 }

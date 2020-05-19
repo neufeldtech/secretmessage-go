@@ -56,15 +56,16 @@ func main() {
 	}
 
 	secretmessage.SetConfig(secretmessage.Config{
-		Port:          resolvePort(),
-		RedisOptions:  redisOptions,
-		SlackToken:    "",
-		SigningSecret: configMap[slackSigningSecretConfigKey],
-		AppURL:        configMap[appURLConfigKey],
+		Port:            resolvePort(),
+		RedisOptions:    redisOptions,
+		SlackToken:      "",
+		SigningSecret:   configMap[slackSigningSecretConfigKey],
+		AppURL:          configMap[appURLConfigKey],
+		LegacyCryptoKey: configMap[legacyCryptoKeyConfigKey],
 		OauthConfig: &oauth2.Config{
 			ClientID:     configMap[slackClientIDConfigKey],
 			ClientSecret: configMap[slackClientSecretConfigKey],
-			RedirectURL:  os.Getenv(slackCallbackURLConfigKey),
+			RedirectURL:  configMap[slackCallbackURLConfigKey],
 			Scopes:       []string{"commands", "chat:write:bot"},
 			Endpoint: oauth2.Endpoint{
 				AuthURL:  "https://slack.com/oauth/authorize",
