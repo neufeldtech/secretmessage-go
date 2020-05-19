@@ -17,7 +17,7 @@ require (
 	github.com/prometheus/common v0.9.1
 	github.com/slack-go/slack v0.6.4
 	github.com/stretchr/testify v1.4.0
-	golang.org/x/net v0.0.0-20190923162816-aa69164e4478 // indirect
+	golang.org/x/net v0.0.0-20190923162816-aa69164e4478
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	golang.org/x/sys v0.0.0-20191010194322-b09406accb47 // indirect
 	golang.org/x/text v0.3.2 // indirect

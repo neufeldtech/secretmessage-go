@@ -10,6 +10,7 @@ import (
 	"github.com/lithammer/shortuuid"
 	"github.com/prometheus/common/log"
 	"github.com/slack-go/slack"
+	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 )
 
@@ -117,18 +118,26 @@ func HandleOauthBegin(c *gin.Context) {
 }
 
 func HandleOauthCallback(c *gin.Context) {
-	// stateQuery := c.Query("state")
-	// stateCookie, err := c.Cookie("state")
-	// if err != nil {
-	// 	log.Errorf("error retrieving state cookie from request: %v", err)
-	// 	c.Redirect(302, "https://secretmessage.xyz/error")
-	// 	return
-	// }
-	// if stateCookie != stateQuery {
-	// 	log.Error("error validating state cookie with state query param")
-	// 	c.Redirect(302, "https://secretmessage.xyz/error")
-	// 	return
-	// }
+	stateQuery := c.Query("state")
+	conf := GetConfig()
+	stateCookie, err := c.Cookie("state")
+	if err != nil {
+		log.Errorf("error retrieving state cookie from request: %v", err)
+		c.Redirect(302, "https://secretmessage.xyz/error")
+		return
+	}
+	if stateCookie != stateQuery {
+		log.Error("error validating state cookie with state query param")
+		c.Redirect(302, "https://secretmessage.xyz/error")
+		return
+	}
+
+	_, err = conf.OauthConfig.Exchange(context.Background(), c.Query("code"))
+	if err != nil {
+		log.Errorf("error retrieving initial oauth token: %v", err)
+		c.Redirect(302, "https://secretmessage.xyz/error")
+		return
+	}
 
 	c.Redirect(302, "https://secretmessage.xyz/success")
 }
