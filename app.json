@@ -1,0 +1,46 @@
+{
+  "name": "nt-secretmessage",
+  "scripts": {},
+  "env": {
+    "APP_URL": {
+      "required": true,
+      "description": "Used by the app for keeping itself awake"
+    },
+    "CRYPTO_KEY": {
+      "required": true,
+      "description": "legacy crypto key from node.js version of app"
+    },
+    "GIN_MODE": {
+      "required": false,
+      "description": "GIN release mode"
+    },
+    "REDIS_URL": {
+      "required": true
+    },
+    "SLACK_CALLBACK_URL": {
+      "required": true
+    },
+    "SLACK_CLIENT_ID": {
+      "required": true
+    },
+    "SLACK_CLIENT_SECRET": {
+      "required": true
+    },
+    "SLACK_SIGNING_SECRET": {
+      "required": true
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1
+    }
+  },
+  "addons": [
+    "heroku-redis"
+  ],
+  "buildpacks": [
+    {
+      "url": "heroku/go"
+    }
+  ]
+}
