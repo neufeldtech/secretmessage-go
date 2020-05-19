@@ -10,12 +10,14 @@ import (
 	"github.com/lithammer/shortuuid"
 	"github.com/prometheus/common/log"
 	"github.com/slack-go/slack"
+	"go.elastic.co/apm/module/apmgoredis"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 )
 
 func HandleSlash(c *gin.Context) {
-	r := GetRedisClient()
+	r := apmgoredis.Wrap(GetRedisClient()).WithContext(c.Request.Context())
+
 	s, err := slack.SlashCommandParse(c.Request)
 	if err != nil {
 		log.Error(err)
@@ -147,7 +149,7 @@ func HandleHealth(c *gin.Context) {
 }
 
 func HandleInteractive(c *gin.Context) {
-	r := GetRedisClient()
+	r := apmgoredis.Wrap(GetRedisClient()).WithContext(c.Request.Context())
 
 	var err error
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/common/log"
+	"go.elastic.co/apm/module/apmgin"
 )
 
 func StayAwake(config Config) {
@@ -28,6 +29,7 @@ func SetupRouter(config Config) *gin.Engine {
 	InitRedis(config)
 	InitSlackClient(config)
 	r := gin.Default()
+	r.Use(apmgin.Middleware(r))
 
 	r.GET("/health", HandleHealth)
 
