@@ -83,7 +83,7 @@ func TestHandleSlash(t *testing.T) {
 	assert.Equal(t, ":envelope: Read message", response.Attachments[0].Actions[0].Text)
 
 	redisClient := GetRedisClient()
-	secretID := strings.ReplaceAll(response.Attachments[0].CallbackID, "get_secret:", "")
+	secretID := strings.ReplaceAll(response.Attachments[0].CallbackID, "send_secret:", "")
 	res, err := redisClient.Get(hash(secretID)).Result()
 	decryptedSecret, err := decrypt(res, secretID)
 	assert.Equal(t, "this is my secret", decryptedSecret)
@@ -114,7 +114,7 @@ func TestHandleInteractiveGetSecret(t *testing.T) {
 	redisClient.Set(hash(secretID), secretEncrypted, 0)
 
 	interactionPayload := slack.InteractionCallback{
-		CallbackID: fmt.Sprintf("get_secret:%v", secretID),
+		CallbackID: fmt.Sprintf("send_secret:%v", secretID),
 	}
 
 	interactionBytes, err := json.Marshal(interactionPayload)

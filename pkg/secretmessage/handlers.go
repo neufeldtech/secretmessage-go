@@ -85,7 +85,7 @@ func HandleSlash(c *gin.Context) {
 				Attachments: []slack.Attachment{{
 					Title:      fmt.Sprintf("%v sent a secret message", s.UserName),
 					Fallback:   fmt.Sprintf("%v sent a secret message", s.UserName),
-					CallbackID: fmt.Sprintf("get_secret:%v", secretID),
+					CallbackID: fmt.Sprintf("send_secret:%v", secretID),
 					Color:      "#6D5692",
 					Actions: []slack.AttachmentAction{{
 						Name:  "readMessage",
@@ -153,8 +153,8 @@ func HandleInteractive(c *gin.Context) {
 	log.Info(i)
 	callbackType := strings.Split(i.CallbackID, ":")[0]
 	switch callbackType {
-	case "get_secret":
-		secretID := strings.ReplaceAll(i.CallbackID, "get_secret:", "")
+	case "send_secret":
+		secretID := strings.ReplaceAll(i.CallbackID, "send_secret:", "")
 		secretEncrypted, err := r.Get(hash(secretID)).Result()
 		if err != nil {
 			log.Error(err)
