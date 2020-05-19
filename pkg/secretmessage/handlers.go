@@ -10,12 +10,16 @@ import (
 	"github.com/lithammer/shortuuid"
 	"github.com/prometheus/common/log"
 	"github.com/slack-go/slack"
+	"go.elastic.co/apm"
 	"go.elastic.co/apm/module/apmgoredis"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 )
 
 func HandleSlash(c *gin.Context) {
+	transaction := apm.DefaultTracer.StartTransaction("POST /slash", "request")
+	defer transaction.End()
+
 	r := apmgoredis.Wrap(GetRedisClient()).WithContext(c.Request.Context())
 
 	s, err := slack.SlashCommandParse(c.Request)
@@ -24,8 +28,12 @@ func HandleSlash(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Bad Request"})
 		return
 	}
+	transaction.Context.SetLabel("userHash", hash(s.UserID))
+	transaction.Context.SetLabel("teamHash", hash(s.TeamID))
+	transaction.Context.SetLabel("action", "createSecret")
 	switch s.Command {
 	case "/secret":
+		transaction.Context.SetLabel("slashCommand", "/secret")
 		var response slack.Message
 		if s.Text == "" {
 			response = slack.Message{
@@ -49,6 +57,7 @@ func HandleSlash(c *gin.Context) {
 		}
 
 		secretID := shortuuid.New()
+		transaction.Context.SetLabel("secretIDHash", hash(secretID))
 		secretEncrypted, err := encrypt(s.Text, secretID)
 		if err != nil {
 			log.Errorf("error storing secretID %v in redis: %v", secretID, err)
@@ -149,6 +158,8 @@ func HandleHealth(c *gin.Context) {
 }
 
 func HandleInteractive(c *gin.Context) {
+	transaction := apm.DefaultTracer.StartTransaction("POST /interactive", "request")
+	defer transaction.End()
 	r := apmgoredis.Wrap(GetRedisClient()).WithContext(c.Request.Context())
 
 	var err error
@@ -161,10 +172,15 @@ func HandleInteractive(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Error with the stuffs"})
 		return
 	}
+	transaction.Context.SetLabel("userHash", hash(i.User.ID))
+	transaction.Context.SetLabel("teamHash", hash(i.User.TeamID))
 	callbackType := strings.Split(i.CallbackID, ":")[0]
 	switch callbackType {
 	case "send_secret":
+		transaction.Context.SetLabel("callbackID", "send_secret")
+		transaction.Context.SetLabel("action", "readSecret")
 		secretID := strings.ReplaceAll(i.CallbackID, "send_secret:", "")
+		transaction.Context.SetLabel("secretIDHash", hash(secretID))
 		secretEncrypted, err := r.Get(hash(secretID)).Result()
 		if err != nil {
 			log.Error(err)
@@ -233,6 +249,8 @@ func HandleInteractive(c *gin.Context) {
 		c.Data(http.StatusOK, gin.MIMEJSON, responseBytes)
 		return
 	case "delete_secret":
+		transaction.Context.SetLabel("callbackID", "delete_secret")
+		transaction.Context.SetLabel("action", "deleteMessage")
 		response := slack.Message{
 			Msg: slack.Msg{
 				DeleteOriginal: true,

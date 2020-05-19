@@ -16,6 +16,7 @@ require (
 	github.com/prometheus/common v0.9.1
 	github.com/slack-go/slack v0.6.4
 	github.com/stretchr/testify v1.4.0
+	go.elastic.co/apm v1.8.0
 	go.elastic.co/apm/module/apmgin v1.8.0
 	go.elastic.co/apm/module/apmgoredis v1.8.0
 	golang.org/x/net v0.0.0-20190923162816-aa69164e4478
