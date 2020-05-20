@@ -73,20 +73,14 @@ func TestHandleSlash(t *testing.T) {
 
 	assert.Nil(t, err)
 
-	if len(response.Attachments) < 1 {
-		assert.FailNow(t, "Expected at least 1 response.Attachments")
+	if len(response.Attachments) > 1 {
+		assert.FailNow(t, "Expected zero response.Attachments")
 	}
-	assert.Equal(t, "imafish sent a secret message", response.Attachments[0].Title)
-	if len(response.Attachments[0].Actions) < 1 {
-		assert.FailNow(t, "Expected at least 1 response.Attachments[0].Actions")
-	}
-	assert.Equal(t, ":envelope: Read message", response.Attachments[0].Actions[0].Text)
 
 	redisClient := GetRedisClient()
-	secretID := strings.ReplaceAll(response.Attachments[0].CallbackID, "send_secret:", "")
-	res, err := redisClient.Get(hash(secretID)).Result()
-	decryptedSecret, err := decrypt(res, secretID)
-	assert.Equal(t, "this is my secret", decryptedSecret)
+	keys := redisClient.Keys("*").Val()
+	assert.Len(t, keys, 1)
+
 	assert.Nil(t, err)
 }
 func TestHandleInteractiveGetSecret(t *testing.T) {

@@ -92,8 +92,13 @@ func HandleSlash(c *gin.Context) {
 			c.Data(http.StatusOK, gin.MIMEJSON, responseBytes)
 			return
 		}
+		// Send the empty Ack to Slack
+		c.Data(http.StatusOK, gin.MIMEPlain, nil)
+
 		response = slack.Message{
 			Msg: slack.Msg{
+				ResponseType:   slack.ResponseTypeInChannel,
+				DeleteOriginal: true,
 				Attachments: []slack.Attachment{{
 					Title:      fmt.Sprintf("%v sent a secret message", s.UserName),
 					Fallback:   fmt.Sprintf("%v sent a secret message", s.UserName),
@@ -108,11 +113,24 @@ func HandleSlash(c *gin.Context) {
 				}},
 			},
 		}
-		responseBytes, err := json.Marshal(response)
+
+		err = SendMessage(s.ResponseURL, response)
+
 		if err != nil {
-			log.Errorf("error marshalling response: %v", err)
+			log.Error(err)
+			response = slack.Message{
+				Msg: slack.Msg{
+					ResponseType: slack.ResponseTypeEphemeral,
+					Text:         ":x: Sorry, an error occurred attempting to create secret",
+				},
+			}
+			responseBytes, err := json.Marshal(response)
+			if err != nil {
+				log.Errorf("error marshalling response: %v", err)
+			}
+			c.Data(http.StatusOK, gin.MIMEJSON, responseBytes)
 		}
-		c.Data(http.StatusOK, gin.MIMEJSON, responseBytes)
+
 		return
 	default:
 		c.Data(http.StatusOK, gin.MIMEPlain, nil)
