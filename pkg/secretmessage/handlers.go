@@ -94,8 +94,6 @@ func HandleSlash(c *gin.Context) {
 		}
 		response = slack.Message{
 			Msg: slack.Msg{
-				ResponseType:   slack.ResponseTypeInChannel,
-				DeleteOriginal: true,
 				Attachments: []slack.Attachment{{
 					Title:      fmt.Sprintf("%v sent a secret message", s.UserName),
 					Fallback:   fmt.Sprintf("%v sent a secret message", s.UserName),
