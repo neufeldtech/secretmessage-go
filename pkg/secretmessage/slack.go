@@ -2,6 +2,7 @@ package secretmessage
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,27 +23,27 @@ func SlackClient() *slack.Client {
 	return api
 }
 
-func SendMessage(uri string, msg slack.Message) error {
+func SendMessage(ctx context.Context, uri string, msg slack.Message) (int, error) {
 	client := apmhttp.WrapClient(http.DefaultClient)
 
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, uri, bytes.NewBuffer(msgBytes))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, uri, bytes.NewBuffer(msgBytes))
 	if err != nil {
-		return err
+		return 0, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return err
+		return resp.StatusCode, err
 	}
 	if resp.StatusCode != http.StatusOK {
 		e := fmt.Sprintf("error: received status code from slack %v", resp.StatusCode)
-		return errors.New(e)
+		return resp.StatusCode, errors.New(e)
 	}
-	return nil
+	return resp.StatusCode, nil
 }

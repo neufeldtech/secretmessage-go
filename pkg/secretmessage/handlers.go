@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -96,10 +97,10 @@ func HandleSlash(c *gin.Context) {
 		}
 		// Send the empty Ack to Slack
 		c.Data(http.StatusOK, gin.MIMEPlain, nil)
-		// tx.End()
 
-		// tx2 := apm.DefaultTracer.StartTransaction("POST SlackResponseURL", "client_request")
-		// defer tx2.End()
+		sendSpan := tx.StartSpan("send_message", "client_request", nil)
+		defer sendSpan.End()
+
 		response = slack.Message{
 			Msg: slack.Msg{
 				ResponseType:   slack.ResponseTypeInChannel,
@@ -118,9 +119,8 @@ func HandleSlash(c *gin.Context) {
 				}},
 			},
 		}
-
-		err = SendMessage(s.ResponseURL, response)
-
+		statusCode, err := SendMessage(c.Request.Context(), s.ResponseURL, response)
+		sendSpan.Context.SetLabel("result", strconv.Itoa(statusCode))
 		if err != nil {
 			log.Error(err)
 			response = slack.Message{
@@ -129,7 +129,7 @@ func HandleSlash(c *gin.Context) {
 					Text:         ":x: Sorry, an error occurred attempting to create secret",
 				},
 			}
-			// tx2.Context.SetLabel("errorCode", "send_secret_error")
+			sendSpan.Context.SetLabel("errorCode", "send_message_error")
 			responseBytes, err := json.Marshal(response)
 			if err != nil {
 				log.Errorf("error marshalling response: %v", err)
