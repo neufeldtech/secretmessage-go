@@ -17,23 +17,22 @@ import (
 )
 
 func HandleSlash(c *gin.Context) {
-	transaction := apm.DefaultTracer.StartTransaction("POST /slash", "request")
-	defer transaction.End()
-
+	tx := apm.TransactionFromContext(c.Request.Context())
 	r := apmgoredis.Wrap(GetRedisClient()).WithContext(c.Request.Context())
 
 	s, err := slack.SlashCommandParse(c.Request)
 	if err != nil {
 		log.Error(err)
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Bad Request"})
+		tx.Context.SetLabel("errorCode", "slash_payload_parse_error")
 		return
 	}
-	transaction.Context.SetLabel("userHash", hash(s.UserID))
-	transaction.Context.SetLabel("teamHash", hash(s.TeamID))
-	transaction.Context.SetLabel("action", "createSecret")
+	tx.Context.SetLabel("userHash", hash(s.UserID))
+	tx.Context.SetLabel("teamHash", hash(s.TeamID))
+	tx.Context.SetLabel("action", "createSecret")
 	switch s.Command {
 	case "/secret":
-		transaction.Context.SetLabel("slashCommand", "/secret")
+		tx.Context.SetLabel("slashCommand", "/secret")
 		var response slack.Message
 		if s.Text == "" {
 			response = slack.Message{
@@ -52,12 +51,13 @@ func HandleSlash(c *gin.Context) {
 			if err != nil {
 				log.Errorf("error marshalling response: %v", err)
 			}
+			tx.Context.SetLabel("errorCode", "text_empty")
 			c.Data(http.StatusOK, gin.MIMEJSON, responseBytes)
 			return
 		}
 
 		secretID := shortuuid.New()
-		transaction.Context.SetLabel("secretIDHash", hash(secretID))
+		tx.Context.SetLabel("secretIDHash", hash(secretID))
 		secretEncrypted, err := encrypt(s.Text, secretID)
 		if err != nil {
 			log.Errorf("error storing secretID %v in redis: %v", secretID, err)
@@ -67,6 +67,7 @@ func HandleSlash(c *gin.Context) {
 					Text:         ":x: Sorry, an error occurred attempting to create secret",
 				},
 			}
+			tx.Context.SetLabel("errorCode", "encrypt_error")
 			responseBytes, err := json.Marshal(response)
 			if err != nil {
 				log.Errorf("error marshalling response: %v", err)
@@ -85,6 +86,7 @@ func HandleSlash(c *gin.Context) {
 					Text:         ":x: Sorry, an error occurred attempting to create secret",
 				},
 			}
+			tx.Context.SetLabel("errorCode", "redis_set_error")
 			responseBytes, err := json.Marshal(response)
 			if err != nil {
 				log.Errorf("error marshalling response: %v", err)
@@ -94,7 +96,10 @@ func HandleSlash(c *gin.Context) {
 		}
 		// Send the empty Ack to Slack
 		c.Data(http.StatusOK, gin.MIMEPlain, nil)
+		// tx.End()
 
+		// tx2 := apm.DefaultTracer.StartTransaction("POST SlackResponseURL", "client_request")
+		// defer tx2.End()
 		response = slack.Message{
 			Msg: slack.Msg{
 				ResponseType:   slack.ResponseTypeInChannel,
@@ -124,6 +129,7 @@ func HandleSlash(c *gin.Context) {
 					Text:         ":x: Sorry, an error occurred attempting to create secret",
 				},
 			}
+			// tx2.Context.SetLabel("errorCode", "send_secret_error")
 			responseBytes, err := json.Marshal(response)
 			if err != nil {
 				log.Errorf("error marshalling response: %v", err)
@@ -147,17 +153,21 @@ func HandleOauthBegin(c *gin.Context) {
 }
 
 func HandleOauthCallback(c *gin.Context) {
+	tx := apm.TransactionFromContext(c.Request.Context())
+
 	stateQuery := c.Query("state")
 	conf := GetConfig()
 	stateCookie, err := c.Cookie("state")
 	if err != nil {
 		log.Errorf("error retrieving state cookie from request: %v", err)
 		c.Redirect(302, "https://secretmessage.xyz/error")
+		tx.Context.SetLabel("errorCode", "state_cookie_parse_error")
 		return
 	}
 	if stateCookie != stateQuery {
 		log.Error("error validating state cookie with state query param")
 		c.Redirect(302, "https://secretmessage.xyz/error")
+		tx.Context.SetLabel("errorCode", "state_cookie_invalid")
 		return
 	}
 
@@ -165,6 +175,7 @@ func HandleOauthCallback(c *gin.Context) {
 	if err != nil {
 		log.Errorf("error retrieving initial oauth token: %v", err)
 		c.Redirect(302, "https://secretmessage.xyz/error")
+		tx.Context.SetLabel("errorCode", "oauth_token_exchange_error")
 		return
 	}
 
@@ -176,8 +187,7 @@ func HandleHealth(c *gin.Context) {
 }
 
 func HandleInteractive(c *gin.Context) {
-	transaction := apm.DefaultTracer.StartTransaction("POST /interactive", "request")
-	defer transaction.End()
+	tx := apm.TransactionFromContext(c.Request.Context())
 	r := apmgoredis.Wrap(GetRedisClient()).WithContext(c.Request.Context())
 
 	var err error
@@ -188,17 +198,18 @@ func HandleInteractive(c *gin.Context) {
 	if err != nil {
 		log.Error(err)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Error with the stuffs"})
+		tx.Context.SetLabel("errorCode", "interaction_payload_parse_error")
 		return
 	}
-	transaction.Context.SetLabel("userHash", hash(i.User.ID))
-	transaction.Context.SetLabel("teamHash", hash(i.User.TeamID))
+	tx.Context.SetLabel("userHash", hash(i.User.ID))
+	tx.Context.SetLabel("teamHash", hash(i.User.TeamID))
 	callbackType := strings.Split(i.CallbackID, ":")[0]
 	switch callbackType {
 	case "send_secret":
-		transaction.Context.SetLabel("callbackID", "send_secret")
-		transaction.Context.SetLabel("action", "readSecret")
+		tx.Context.SetLabel("callbackID", "send_secret")
+		tx.Context.SetLabel("action", "sendSecret")
 		secretID := strings.ReplaceAll(i.CallbackID, "send_secret:", "")
-		transaction.Context.SetLabel("secretIDHash", hash(secretID))
+		tx.Context.SetLabel("secretIDHash", hash(secretID))
 		secretEncrypted, err := r.Get(hash(secretID)).Result()
 		if err != nil {
 			log.Error(err)
@@ -209,6 +220,7 @@ func HandleInteractive(c *gin.Context) {
 					Text:           ":x: Sorry, an error occurred attempting to retrieve secret",
 				},
 			}
+			tx.Context.SetLabel("errorCode", "redis_get_error")
 			responseBytes, err := json.Marshal(response)
 			if err != nil {
 				log.Errorf("error marshalling response: %v", err)
@@ -230,6 +242,7 @@ func HandleInteractive(c *gin.Context) {
 					Text:         ":x: Sorry, an error occurred attempting to retrieve secret",
 				},
 			}
+			tx.Context.SetLabel("errorCode", "decrypt_error")
 			responseBytes, err := json.Marshal(response)
 			if err != nil {
 				log.Errorf("error marshalling response: %v", err)
@@ -267,8 +280,10 @@ func HandleInteractive(c *gin.Context) {
 		c.Data(http.StatusOK, gin.MIMEJSON, responseBytes)
 		return
 	case "delete_secret":
-		transaction.Context.SetLabel("callbackID", "delete_secret")
-		transaction.Context.SetLabel("action", "deleteMessage")
+		secretID := strings.ReplaceAll(i.CallbackID, "delete_secret:", "")
+		tx.Context.SetLabel("secretIDHash", hash(secretID))
+		tx.Context.SetLabel("callbackID", "delete_secret")
+		tx.Context.SetLabel("action", "deleteMessage")
 		response := slack.Message{
 			Msg: slack.Msg{
 				DeleteOriginal: true,

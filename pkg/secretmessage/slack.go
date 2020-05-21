@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/slack-go/slack"
+	"go.elastic.co/apm/module/apmhttp"
 )
 
 var (
@@ -22,7 +23,8 @@ func SlackClient() *slack.Client {
 }
 
 func SendMessage(uri string, msg slack.Message) error {
-	client := &http.Client{}
+	client := apmhttp.WrapClient(http.DefaultClient)
+
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
 		return err
