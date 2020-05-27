@@ -54,6 +54,10 @@ func decrypt(input string, passphrase string) (string, error) {
 }
 
 func encrypt(input string, passphrase string) (string, error) {
+	return encryptWithReader(rand.Reader, input, passphrase)
+}
+
+func encryptWithReader(rr io.Reader, input string, passphrase string) (string, error) {
 	var result string
 	key := deriveCryptoKey(passphrase)
 	c, err := aes.NewCipher(key)
@@ -66,7 +70,7 @@ func encrypt(input string, passphrase string) (string, error) {
 		return result, err
 	}
 	nonce := make([]byte, gcm.NonceSize())
-	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
+	if _, err = io.ReadFull(rr, nonce); err != nil {
 		return result, err
 	}
 	ciphertext := hex.EncodeToString(gcm.Seal(nonce, nonce, []byte(input), nil))
