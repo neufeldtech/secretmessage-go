@@ -31,7 +31,7 @@ Please [open a Github Issue](https://github.com/neufeldtech/slack-secret/issues/
 ## Contribute
 - [Fork the repo](https://github.com/neufeldtech/slack-secret/fork)
 - Make your contribution
-- [Open a pull request](https://github.com/neufeldtech/secret-message/pulls)
+- [Open a pull request](https://github.com/neufeldtech/secretmessage-go/pulls)
 
 ## License
 The MIT License (MIT)
