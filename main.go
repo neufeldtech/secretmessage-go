@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/go-redis/redis"
-	"github.com/neufeldtech/smsg-go/pkg/secretmessage"
+	"github.com/neufeldtech/secretmessage-go/pkg/secretmessage"
 	"github.com/prometheus/common/log"
 	"golang.org/x/oauth2"
 

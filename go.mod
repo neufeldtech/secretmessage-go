@@ -1,4 +1,4 @@
-module github.com/neufeldtech/smsg-go
+module github.com/neufeldtech/secretmessage-go
 
 // +heroku goVersion go1.13
 go 1.13

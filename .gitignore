@@ -1,5 +1,5 @@
 bin
 .env*
 tmp
-smsg-go
+secretmessage-go
 dump.rdb
