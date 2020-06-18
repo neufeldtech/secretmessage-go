@@ -19,7 +19,7 @@ Just type /secret and your message, such as ```/secret I'm scared of heights```
 ## Read a secret message
 To read a secret message, just click on the View message button. The message will appear as an ephemeral Slack message visable to only you - it will disappear when you reload your Slack client.
 
-<img src="https://raw.githubusercontent.com/neufeldtech/secretmessage-go/master/html2/images/receive_secret_1.gif" alt="Read a secret message" width="450px" />
+<img src="https://raw.githubusercontent.com/neufeldtech/secretmessage-go/master/html/images/receive_secret_1.gif" alt="Read a secret message" width="450px" />
 
 ## Install
 Visit [secretmessage.xyz](http://secretmessage.xyz) and click the **Add to Slack** button at the bottom of the page.
