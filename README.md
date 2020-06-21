@@ -26,10 +26,10 @@ Visit [secretmessage.xyz](http://secretmessage.xyz) and click the **Add to Slack
 
 ## Issues
 
-Please [open a Github Issue](https://github.com/neufeldtech/slack-secret/issues/new) or [Email us](mailto:support@secretmessage.xyz) if you require assistance
+Please [open a Github Issue](https://github.com/neufeldtech/secretmessage-go/issues/new) or [Email us](mailto:support@secretmessage.xyz) if you require assistance
 
 ## Contribute
-- [Fork the repo](https://github.com/neufeldtech/slack-secret/fork)
+- [Fork the repo](https://github.com/neufeldtech/secretmessage-go/fork)
 - Make your contribution
 - [Open a pull request](https://github.com/neufeldtech/secretmessage-go/pulls)
 
