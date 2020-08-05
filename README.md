@@ -4,7 +4,7 @@
 
 
 #### Notice:
-Looking for the original node.js version? Find it [HERE](https://github.com/neufeldtech/secret-message)
+Looking for the original code? Find it [HERE](https://github.com/neufeldtech/secret-message)
 
 ---
 
