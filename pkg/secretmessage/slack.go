@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/prometheus/common/log"
 	"github.com/slack-go/slack"
 	"go.elastic.co/apm/module/apmhttp"
 )
@@ -28,12 +29,12 @@ func SendMessage(ctx context.Context, uri string, msg slack.Message) (int, error
 
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
-		return 0, err
+		return http.StatusInternalServerError, err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, uri, bytes.NewBuffer(msgBytes))
 	if err != nil {
-		return 0, err
+		return http.StatusInternalServerError, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 
@@ -46,4 +47,27 @@ func SendMessage(ctx context.Context, uri string, msg slack.Message) (int, error
 		return resp.StatusCode, errors.New(e)
 	}
 	return resp.StatusCode, nil
+}
+
+// NewSlackErrorResponse Constructs a json response for an ephemeral message back to a user
+func NewSlackErrorResponse(title, text, callbackID string) ([]byte, int) {
+	responseCode := http.StatusOK
+	response := slack.Message{
+		Msg: slack.Msg{
+			ResponseType: slack.ResponseTypeEphemeral,
+			Attachments: []slack.Attachment{{
+				Title:      title,
+				Fallback:   title,
+				Text:       text,
+				CallbackID: callbackID,
+				Color:      "#FF0000",
+			}},
+		},
+	}
+	responseBytes, err := json.Marshal(response)
+	if err != nil {
+		log.Errorf("error marshalling json: %v", err)
+		responseCode = http.StatusInternalServerError
+	}
+	return responseBytes, responseCode
 }
