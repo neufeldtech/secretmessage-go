@@ -3,7 +3,6 @@ package secretmessage
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/lithammer/shortuuid"
@@ -81,8 +80,7 @@ func SlashSecret(c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) {
 			}},
 		},
 	}
-	code, sendMessageErr := SendMessage(c.Request.Context(), s.ResponseURL, response)
-	sendSpan.Context.SetLabel("result", strconv.Itoa(code))
+	sendMessageErr := SendMessage(c.Request.Context(), s.ResponseURL, response)
 	if sendMessageErr != nil {
 		sendSpan.Context.SetLabel("errorCode", "send_message_error")
 		log.Errorf("error sending secret to slack: %v", sendMessageErr)

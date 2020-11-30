@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/prometheus/common/log"
 	"github.com/slack-go/slack"
@@ -24,29 +25,32 @@ func SlackClient() *slack.Client {
 	return api
 }
 
-func SendMessage(ctx context.Context, uri string, msg slack.Message) (int, error) {
-	client := apmhttp.WrapClient(http.DefaultClient)
+func SendMessage(ctx context.Context, uri string, msg slack.Message) error {
+	htc := &http.Client{
+		Timeout: time.Second * 5,
+	}
+	client := apmhttp.WrapClient(htc)
 
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
-		return http.StatusInternalServerError, err
+		return err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, uri, bytes.NewBuffer(msgBytes))
 	if err != nil {
-		return http.StatusInternalServerError, err
+		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return resp.StatusCode, err
+		return err
 	}
 	if resp.StatusCode != http.StatusOK {
 		e := fmt.Sprintf("error: received status code from slack %v", resp.StatusCode)
-		return resp.StatusCode, errors.New(e)
+		return errors.New(e)
 	}
-	return resp.StatusCode, nil
+	return err
 }
 
 // NewSlackErrorResponse Constructs a json response for an ephemeral message back to a user
