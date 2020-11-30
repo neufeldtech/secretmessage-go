@@ -1,4 +1,4 @@
-# Secret Message <img src="https://raw.githubusercontent.com/neufeldtech/secretmessage-go/master/html/images/logo.png" width="25px"></img>
+# Secret Message <img src="https://raw.githubusercontent.com/neufeldtech/secretmessage-go/main/html/images/logo.png" width="25px"></img>
 
 [![CircleCI](https://circleci.com/gh/neufeldtech/secretmessage-go.svg?style=shield&circle-token=b05e479a3cc98109e709eb5cf9b06487b3a58c8b)](https://app.circleci.com/pipelines/github/neufeldtech/secretmessage-go)
 
@@ -14,12 +14,12 @@ Looking for the original code? Find it [HERE](https://github.com/neufeldtech/sec
 ## Send a secret message
 Just type /secret and your message, such as ```/secret I'm scared of heights```
 
-<img src="https://raw.githubusercontent.com/neufeldtech/secretmessage-go/master/html/images/send_secret_1.gif" alt="Send a secret message" width="450px" />
+<img src="https://raw.githubusercontent.com/neufeldtech/secretmessage-go/main/html/images/send_secret_1.gif" alt="Send a secret message" width="450px" />
 
 ## Read a secret message
 To read a secret message, just click on the View message button. The message will appear as an ephemeral Slack message visable to only you - it will disappear when you reload your Slack client.
 
-<img src="https://raw.githubusercontent.com/neufeldtech/secretmessage-go/master/html/images/receive_secret_1.gif" alt="Read a secret message" width="450px" />
+<img src="https://raw.githubusercontent.com/neufeldtech/secretmessage-go/main/html/images/receive_secret_1.gif" alt="Read a secret message" width="450px" />
 
 ## Install
 Visit [secretmessage.xyz](http://secretmessage.xyz) and click the **Add to Slack** button at the bottom of the page.
