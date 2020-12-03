@@ -92,7 +92,25 @@ func SlashSecret(c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) {
 		return
 	}
 
+	responseEphemeral := slack.Message{
+		Msg: slack.Msg{
+			ResponseType:   slack.ResponseTypeEphemeral,
+			DeleteOriginal: true,
+			Text:           ":wave: Hey, we're working hard updating Secret Message. In order to keep using the app, <https://slacksecret.herokuapp.com/auth/slack|please click here to reinstall>",
+		},
+	}
 	// Send the empty Ack to Slack if everything is gucci
 	c.Data(http.StatusOK, gin.MIMEPlain, nil)
+
+	teamAccessToken, err := r.HGet(s.TeamID, "access_token").Result()
+	if err != nil || teamAccessToken == "" {
+		//User needs to reinstall the app, send them a message about that now
+		sendMessageEphemeralErr := SendMessage(c.Request.Context(), s.ResponseURL, responseEphemeral)
+		if sendMessageErr != nil {
+			sendSpan.Context.SetLabel("errorCode", "send_ephemeral_message_error")
+			log.Errorf("error sending ephemeral message to slack: %v", sendMessageEphemeralErr)
+		}
+	}
+
 	return
 }

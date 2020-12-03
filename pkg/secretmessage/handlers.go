@@ -10,6 +10,7 @@ import (
 	"github.com/prometheus/common/log"
 	"github.com/slack-go/slack"
 	"go.elastic.co/apm"
+	"go.elastic.co/apm/module/apmgoredis"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 )
@@ -42,6 +43,9 @@ func HandleOauthBegin(c *gin.Context) {
 
 func HandleOauthCallback(c *gin.Context) {
 	tx := apm.TransactionFromContext(c.Request.Context())
+	r := apmgoredis.Wrap(GetRedisClient()).WithContext(c.Request.Context())
+	tx.Context.SetLabel("slackOauthVersion", "v2")
+	tx.Context.SetLabel("action", "handleOauthCallback")
 
 	stateQuery := c.Query("state")
 	conf := GetConfig()
@@ -58,8 +62,7 @@ func HandleOauthCallback(c *gin.Context) {
 		tx.Context.SetLabel("errorCode", "state_cookie_invalid")
 		return
 	}
-
-	_, err = conf.OauthConfig.Exchange(context.Background(), c.Query("code"))
+	token, err := conf.OauthConfig.Exchange(context.Background(), c.Query("code"))
 	if err != nil {
 		log.Errorf("error retrieving initial oauth token: %v", err)
 		c.Redirect(302, "https://secretmessage.xyz/error")
@@ -67,6 +70,43 @@ func HandleOauthCallback(c *gin.Context) {
 		return
 	}
 
+	team, ok := token.Extra("team").(map[string]interface{})
+	if !ok {
+		log.Errorf("error unmarshalling team from token: %v", token)
+		c.Redirect(302, "https://secretmessage.xyz/error")
+		tx.Context.SetLabel("errorCode", "token_team_unmarshal_error")
+		return
+	}
+
+	teamID, ok := team["id"].(string)
+	if !ok {
+		log.Errorf("error unmarshalling teamID from token: %v", token)
+		c.Redirect(302, "https://secretmessage.xyz/error")
+		tx.Context.SetLabel("errorCode", "token_team_unmarshal_error")
+		return
+	}
+
+	teamName, ok := team["name"].(string)
+	if !ok {
+		log.Errorf("error unmarshalling teamName from token: %v", token)
+		c.Redirect(302, "https://secretmessage.xyz/error")
+		tx.Context.SetLabel("errorCode", "token_team_unmarshal_error")
+		return
+	}
+
+	fields := map[string]interface{}{
+		"access_token": token.AccessToken,
+		"name":         teamName,
+		"scope":        token.Extra("scope"),
+	}
+
+	err = r.HMSet(teamID, fields).Err()
+	if err != nil {
+		log.Errorf("error setting token in redis: %v", err)
+		c.Redirect(302, "https://secretmessage.xyz/error")
+		tx.Context.SetLabel("errorCode", "token_team_unmarshal_error")
+		return
+	}
 	c.Redirect(302, "https://secretmessage.xyz/success")
 }
 
