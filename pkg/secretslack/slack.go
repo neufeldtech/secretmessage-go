@@ -1,4 +1,4 @@
-package slack
+package secretslack
 
 import (
 	"bytes"
@@ -10,34 +10,35 @@ import (
 	"sync"
 	"time"
 
-	"github.com/neufeldtech/secretmessage-go/pkg/redis"
+	"github.com/neufeldtech/secretmessage-go/pkg/secretredis"
 	"github.com/prometheus/common/log"
-	sl "github.com/slack-go/slack"
+	"github.com/slack-go/slack"
 	"go.elastic.co/apm/module/apmgoredis"
 	"go.elastic.co/apm/module/apmhttp"
 )
 
 var (
-	apiClients = make(map[string]*sl.Client)
+	apiClients = make(map[string]*slack.Client)
 	mux        sync.Mutex
 )
 
-func GetClient(teamID string) (*sl.Client, error) {
+// Client returns a team-specific Slack API client for a given teamID. If one does not yet exist, it attempts to build one if we have an access_token stored for said team.
+func Client(teamID string) (*slack.Client, error) {
 	if teamID == "" {
 		return nil, errors.New("Invalid Team ID")
 	}
 
-	var apiClient *sl.Client
+	var apiClient *slack.Client
 	apiClient = apiClients[teamID]
 
 	if apiClient == nil {
-		r := apmgoredis.Wrap(redis.GetRedisClient())
+		r := apmgoredis.Wrap(secretredis.Client())
 		token, err := r.HGet(teamID, "access_token").Result()
 		if err != nil {
 			return nil, fmt.Errorf("error getting token from redis for team %v: %v", teamID, err)
 		}
 
-		apiClient = sl.New(token, sl.OptionDebug(false))
+		apiClient = slack.New(token, slack.OptionDebug(false))
 		mux.Lock()
 		defer mux.Unlock()
 		apiClients[teamID] = apiClient
@@ -47,7 +48,8 @@ func GetClient(teamID string) (*sl.Client, error) {
 	return apiClient, nil
 }
 
-func SendMessage(ctx context.Context, uri string, msg sl.Message) error {
+// SendResponseUrlMessage sends a slack message via a response_url - It does not require a token
+func SendResponseUrlMessage(ctx context.Context, uri string, msg slack.Message) error {
 	htc := &http.Client{
 		Timeout: time.Second * 5,
 	}
@@ -78,10 +80,10 @@ func SendMessage(ctx context.Context, uri string, msg sl.Message) error {
 // NewSlackErrorResponse Constructs a json response for an ephemeral message back to a user
 func NewSlackErrorResponse(title, text, callbackID string) ([]byte, int) {
 	responseCode := http.StatusOK
-	response := sl.Message{
-		Msg: sl.Msg{
-			ResponseType: sl.ResponseTypeEphemeral,
-			Attachments: []sl.Attachment{{
+	response := slack.Message{
+		Msg: slack.Msg{
+			ResponseType: slack.ResponseTypeEphemeral,
+			Attachments: []slack.Attachment{{
 				Title:      title,
 				Fallback:   title,
 				Text:       text,

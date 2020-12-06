@@ -7,16 +7,16 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/neufeldtech/secretmessage-go/pkg/redis"
-	"github.com/neufeldtech/secretmessage-go/pkg/slack"
+	"github.com/neufeldtech/secretmessage-go/pkg/secretredis"
+	"github.com/neufeldtech/secretmessage-go/pkg/secretslack"
 	"github.com/prometheus/common/log"
-	sl "github.com/slack-go/slack"
+	"github.com/slack-go/slack"
 	"go.elastic.co/apm"
 	"go.elastic.co/apm/module/apmgoredis"
 )
 
-func CallbackSendSecret(tx *apm.Transaction, c *gin.Context, i sl.InteractionCallback) {
-	r := apmgoredis.Wrap(redis.GetRedisClient()).WithContext(c.Request.Context())
+func CallbackSendSecret(tx *apm.Transaction, c *gin.Context, i slack.InteractionCallback) {
+	r := apmgoredis.Wrap(secretredis.Client()).WithContext(c.Request.Context())
 	tx.Context.SetLabel("callbackID", "send_secret")
 	tx.Context.SetLabel("action", "sendSecret")
 
@@ -28,7 +28,7 @@ func CallbackSendSecret(tx *apm.Transaction, c *gin.Context, i sl.InteractionCal
 	if getSecretErr != nil {
 		tx.Context.SetLabel("errorCode", "redis_get_error")
 		log.Errorf("error retrieving secret from redis: %v", getSecretErr)
-		res, code := slack.NewSlackErrorResponse(
+		res, code := secretslack.NewSlackErrorResponse(
 			":x: Sorry, an error occurred",
 			"An error occurred attempting to retrieve secret",
 			"redis_get_error")
@@ -47,7 +47,7 @@ func CallbackSendSecret(tx *apm.Transaction, c *gin.Context, i sl.InteractionCal
 	if decryptionErr != nil {
 		log.Errorf("error retrieving secretID %v from redis: %v", secretID, decryptionErr)
 		tx.Context.SetLabel("errorCode", "decrypt_error")
-		res, code := slack.NewSlackErrorResponse(
+		res, code := secretslack.NewSlackErrorResponse(
 			":x: Sorry, an error occurred",
 			"An error occurred attempting to retrieve secret",
 			"decrypt_error")
@@ -55,18 +55,18 @@ func CallbackSendSecret(tx *apm.Transaction, c *gin.Context, i sl.InteractionCal
 		return
 	}
 
-	response := sl.Message{
-		Msg: sl.Msg{
+	response := slack.Message{
+		Msg: slack.Msg{
 			DeleteOriginal: true,
-			ResponseType:   sl.ResponseTypeEphemeral,
-			Attachments: []sl.Attachment{{
+			ResponseType:   slack.ResponseTypeEphemeral,
+			Attachments: []slack.Attachment{{
 				Title:      "Secret message",
 				Fallback:   "Secret message",
 				Text:       secretDecrypted,
 				CallbackID: fmt.Sprintf("delete_secret:%v", secretID),
 				Color:      "#6D5692",
 				Footer:     "The above message is only visible to you and will disappear when your Slack client reloads. To remove it immediately, click the button below:",
-				Actions: []sl.AttachmentAction{{
+				Actions: []slack.AttachmentAction{{
 					Name:  "removeMessage",
 					Text:  ":x: Delete message",
 					Type:  "button",
@@ -79,7 +79,7 @@ func CallbackSendSecret(tx *apm.Transaction, c *gin.Context, i sl.InteractionCal
 	responseBytes, err := json.Marshal(response)
 	if err != nil {
 		log.Errorf("error marshalling response: %v", err)
-		res, code := slack.NewSlackErrorResponse(
+		res, code := secretslack.NewSlackErrorResponse(
 			":x: Sorry, an error occurred",
 			"An error occurred attempting to retrieve secret",
 			"json_marshal_error")
@@ -91,20 +91,20 @@ func CallbackSendSecret(tx *apm.Transaction, c *gin.Context, i sl.InteractionCal
 	return
 }
 
-func CallbackDeleteSecret(tx *apm.Transaction, c *gin.Context, i sl.InteractionCallback) {
+func CallbackDeleteSecret(tx *apm.Transaction, c *gin.Context, i slack.InteractionCallback) {
 	secretID := strings.ReplaceAll(i.CallbackID, "delete_secret:", "")
 	tx.Context.SetLabel("secretIDHash", hash(secretID))
 	tx.Context.SetLabel("callbackID", "delete_secret")
 	tx.Context.SetLabel("action", "deleteMessage")
-	response := sl.Message{
-		Msg: sl.Msg{
+	response := slack.Message{
+		Msg: slack.Msg{
 			DeleteOriginal: true,
 		},
 	}
 	responseBytes, err := json.Marshal(response)
 	if err != nil {
 		log.Errorf("error marshalling response: %v", err)
-		res, code := slack.NewSlackErrorResponse(
+		res, code := secretslack.NewSlackErrorResponse(
 			":x: Sorry, an error occurred",
 			"An error occurred attempting to delete secret",
 			"json_marshal_error")

@@ -14,6 +14,7 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"github.com/go-redis/redis"
 	"github.com/lithammer/shortuuid"
+	"github.com/neufeldtech/secretmessage-go/pkg/secretredis"
 	"github.com/slack-go/slack"
 
 	"github.com/stretchr/testify/assert"
@@ -77,7 +78,7 @@ func TestHandleSlash(t *testing.T) {
 		assert.FailNow(t, "Expected zero response.Attachments")
 	}
 
-	redisClient := GetRedisClient()
+	redisClient := secretredis.Client()
 	keys := redisClient.Keys("*").Val()
 	assert.Len(t, keys, 1)
 
@@ -100,7 +101,7 @@ func TestHandleInteractiveGetSecret(t *testing.T) {
 	router := SetupRouter(config)
 
 	secretID := shortuuid.New()
-	redisClient := GetRedisClient()
+	redisClient := secretredis.Client()
 	secretEncrypted, err := encrypt("this is my secret", secretID)
 	if err != nil {
 		assert.Fail(t, err.Error())
@@ -156,7 +157,7 @@ func TestHandleInteractiveDeleteSecret(t *testing.T) {
 	router := SetupRouter(config)
 
 	secretID := shortuuid.New()
-	redisClient := GetRedisClient()
+	redisClient := secretredis.Client()
 	secretEncrypted, err := encrypt("this is my secret", secretID)
 	if err != nil {
 		assert.Fail(t, err.Error())

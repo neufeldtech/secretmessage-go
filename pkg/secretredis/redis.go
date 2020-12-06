@@ -1,4 +1,4 @@
-package redis
+package secretredis
 
 import (
 	"github.com/go-redis/redis"
@@ -6,9 +6,9 @@ import (
 
 var c *redis.Client
 
-func InitRedis(r *redis.Options) {
+func Connect(r *redis.Options) {
 	c = redis.NewClient(r)
 }
-func GetRedisClient() *redis.Client {
+func Client() *redis.Client {
 	return c
 }
