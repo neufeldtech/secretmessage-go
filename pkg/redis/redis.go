@@ -1,4 +1,4 @@
-package secretmessage
+package redis
 
 import (
 	"github.com/go-redis/redis"
@@ -6,8 +6,8 @@ import (
 
 var c *redis.Client
 
-func InitRedis(config Config) {
-	c = redis.NewClient(config.RedisOptions)
+func InitRedis(r *redis.Options) {
+	c = redis.NewClient(r)
 }
 func GetRedisClient() *redis.Client {
 	return c

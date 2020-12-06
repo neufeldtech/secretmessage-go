@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/lithammer/shortuuid"
+	"github.com/neufeldtech/secretmessage-go/pkg/redis"
 	"github.com/prometheus/common/log"
 	"github.com/slack-go/slack"
 	"go.elastic.co/apm"
@@ -43,7 +44,7 @@ func HandleOauthBegin(c *gin.Context) {
 
 func HandleOauthCallback(c *gin.Context) {
 	tx := apm.TransactionFromContext(c.Request.Context())
-	r := apmgoredis.Wrap(GetRedisClient()).WithContext(c.Request.Context())
+	r := apmgoredis.Wrap(redis.GetRedisClient()).WithContext(c.Request.Context())
 	tx.Context.SetLabel("slackOauthVersion", "v2")
 	tx.Context.SetLabel("action", "handleOauthCallback")
 
@@ -99,7 +100,6 @@ func HandleOauthCallback(c *gin.Context) {
 		"name":         teamName,
 		"scope":        token.Extra("scope"),
 	}
-
 	err = r.HMSet(teamID, fields).Err()
 	if err != nil {
 		log.Errorf("error setting token in redis: %v", err)

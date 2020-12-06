@@ -1,4 +1,4 @@
-package secretmessage
+package slack
 
 import (
 	"bytes"
@@ -7,25 +7,47 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
+	"github.com/neufeldtech/secretmessage-go/pkg/redis"
 	"github.com/prometheus/common/log"
-	"github.com/slack-go/slack"
+	sl "github.com/slack-go/slack"
+	"go.elastic.co/apm/module/apmgoredis"
 	"go.elastic.co/apm/module/apmhttp"
 )
 
 var (
-	api *slack.Client
+	apiClients = make(map[string]*sl.Client)
+	mux        sync.Mutex
 )
 
-func InitSlackClient(config Config) {
-	api = slack.New(config.SlackToken, slack.OptionDebug(true))
-}
-func SlackClient() *slack.Client {
-	return api
+func GetClient(teamID string) (*sl.Client, error) {
+	if teamID == "" {
+		return nil, errors.New("Invalid Team ID")
+	}
+
+	var apiClient *sl.Client
+	apiClient = apiClients[teamID]
+
+	if apiClient == nil {
+		r := apmgoredis.Wrap(redis.GetRedisClient())
+		token, err := r.HGet(teamID, "access_token").Result()
+		if err != nil {
+			return nil, fmt.Errorf("error getting token from redis for team %v: %v", teamID, err)
+		}
+
+		apiClient = sl.New(token, sl.OptionDebug(false))
+		mux.Lock()
+		defer mux.Unlock()
+		apiClients[teamID] = apiClient
+		return apiClient, nil
+	}
+
+	return apiClient, nil
 }
 
-func SendMessage(ctx context.Context, uri string, msg slack.Message) error {
+func SendMessage(ctx context.Context, uri string, msg sl.Message) error {
 	htc := &http.Client{
 		Timeout: time.Second * 5,
 	}
@@ -56,10 +78,10 @@ func SendMessage(ctx context.Context, uri string, msg slack.Message) error {
 // NewSlackErrorResponse Constructs a json response for an ephemeral message back to a user
 func NewSlackErrorResponse(title, text, callbackID string) ([]byte, int) {
 	responseCode := http.StatusOK
-	response := slack.Message{
-		Msg: slack.Msg{
-			ResponseType: slack.ResponseTypeEphemeral,
-			Attachments: []slack.Attachment{{
+	response := sl.Message{
+		Msg: sl.Msg{
+			ResponseType: sl.ResponseTypeEphemeral,
+			Attachments: []sl.Attachment{{
 				Title:      title,
 				Fallback:   title,
 				Text:       text,

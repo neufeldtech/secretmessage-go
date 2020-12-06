@@ -66,11 +66,8 @@ func main() {
 			ClientID:     configMap[slackClientIDConfigKey],
 			ClientSecret: configMap[slackClientSecretConfigKey],
 			RedirectURL:  configMap[slackCallbackURLConfigKey],
-			// Scopes:       []string{"commands", "chat:write:bot"},
-			Scopes: []string{"commands", "chat:write", "chat:write.customize"},
+			Scopes:       []string{"chat:write", "chat:write.customize", "chat:write.public", "commands", "workflow.steps:execute"},
 			Endpoint: oauth2.Endpoint{
-				// AuthURL:  "https://slack.com/oauth/authorize",
-				// TokenURL: "https://slack.com/api/oauth.access",
 				AuthURL:  "https://slack.com/oauth/v2/authorize",
 				TokenURL: "https://slack.com/api/oauth.v2.access",
 			},
