@@ -13,13 +13,15 @@ import (
 	"github.com/neufeldtech/secretmessage-go/pkg/secretredis"
 	"github.com/prometheus/common/log"
 	"github.com/slack-go/slack"
-	"go.elastic.co/apm/module/apmgoredis"
 	"go.elastic.co/apm/module/apmhttp"
 )
 
 var (
 	apiClients = make(map[string]*slack.Client)
 	mux        sync.Mutex
+	httpClient = apmhttp.WrapClient(&http.Client{
+		Timeout: time.Second * 5,
+	})
 )
 
 // Client returns a team-specific Slack API client for a given teamID. If one does not yet exist, it attempts to build one if we have an access_token stored for said team.
@@ -32,7 +34,7 @@ func Client(teamID string) (*slack.Client, error) {
 	apiClient = apiClients[teamID]
 
 	if apiClient == nil {
-		r := apmgoredis.Wrap(secretredis.Client())
+		r := secretredis.Client()
 		token, err := r.HGet(teamID, "access_token").Result()
 		if err != nil {
 			return nil, fmt.Errorf("error getting token from redis for team %v: %v", teamID, err)
@@ -50,10 +52,6 @@ func Client(teamID string) (*slack.Client, error) {
 
 // SendResponseUrlMessage sends a slack message via a response_url - It does not require a token
 func SendResponseUrlMessage(ctx context.Context, uri string, msg slack.Message) error {
-	htc := &http.Client{
-		Timeout: time.Second * 5,
-	}
-	client := apmhttp.WrapClient(htc)
 
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
@@ -66,7 +64,7 @@ func SendResponseUrlMessage(ctx context.Context, uri string, msg slack.Message) 
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := client.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return err
 	}

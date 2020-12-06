@@ -12,11 +12,10 @@ import (
 	"github.com/prometheus/common/log"
 	"github.com/slack-go/slack"
 	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmgoredis"
 )
 
 func CallbackSendSecret(tx *apm.Transaction, c *gin.Context, i slack.InteractionCallback) {
-	r := apmgoredis.Wrap(secretredis.Client()).WithContext(c.Request.Context())
+	r := secretredis.Client().WithContext(c.Request.Context())
 	tx.Context.SetLabel("callbackID", "send_secret")
 	tx.Context.SetLabel("action", "sendSecret")
 
@@ -45,7 +44,7 @@ func CallbackSendSecret(tx *apm.Transaction, c *gin.Context, i slack.Interaction
 		secretDecrypted, decryptionErr = decrypt(secretEncrypted, secretID)
 	}
 	if decryptionErr != nil {
-		log.Errorf("error retrieving secretID %v from redis: %v", secretID, decryptionErr)
+		log.Errorf("error decrypting secretID %v: %v", secretID, decryptionErr)
 		tx.Context.SetLabel("errorCode", "decrypt_error")
 		res, code := secretslack.NewSlackErrorResponse(
 			":x: Sorry, an error occurred",
@@ -65,7 +64,7 @@ func CallbackSendSecret(tx *apm.Transaction, c *gin.Context, i slack.Interaction
 				Text:       secretDecrypted,
 				CallbackID: fmt.Sprintf("delete_secret:%v", secretID),
 				Color:      "#6D5692",
-				Footer:     "The above message is only visible to you and will disappear when your Slack client reloads. To remove it immediately, click the button below:",
+				Footer:     "The above message is only visible to you and will disappear when your Slack client reloads. To remove it immediately, press the delete button",
 				Actions: []slack.AttachmentAction{{
 					Name:  "removeMessage",
 					Text:  ":x: Delete message",

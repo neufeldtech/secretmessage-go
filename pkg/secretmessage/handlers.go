@@ -11,7 +11,6 @@ import (
 	"github.com/prometheus/common/log"
 	"github.com/slack-go/slack"
 	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmgoredis"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 )
@@ -44,7 +43,7 @@ func HandleOauthBegin(c *gin.Context) {
 
 func HandleOauthCallback(c *gin.Context) {
 	tx := apm.TransactionFromContext(c.Request.Context())
-	r := apmgoredis.Wrap(secretredis.Client()).WithContext(c.Request.Context())
+	r := secretredis.Client().WithContext(c.Request.Context())
 	tx.Context.SetLabel("slackOauthVersion", "v2")
 	tx.Context.SetLabel("action", "handleOauthCallback")
 

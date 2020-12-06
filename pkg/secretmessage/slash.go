@@ -11,11 +11,11 @@ import (
 	"github.com/prometheus/common/log"
 	"github.com/slack-go/slack"
 	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmgoredis"
 )
 
-func PrepareAndSendSecret(c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) error {
-	r := apmgoredis.Wrap(secretredis.Client()).WithContext(c.Request.Context())
+// PrepareAndSendSecretEnvelope encrypts the secret, stores in redis, and sends the 'envelope' back to slack
+func PrepareAndSendSecretEnvelope(c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) error {
+	r := secretredis.Client().WithContext(c.Request.Context())
 
 	secretID := shortuuid.New()
 	tx.Context.SetLabel("secretIDHash", hash(secretID))
@@ -37,8 +37,7 @@ func PrepareAndSendSecret(c *gin.Context, tx *apm.Transaction, s slack.SlashComm
 
 	secretResponse := slack.Message{
 		Msg: slack.Msg{
-			ResponseType:   slack.ResponseTypeInChannel,
-			DeleteOriginal: true,
+			ResponseType: slack.ResponseTypeInChannel,
 			Attachments: []slack.Attachment{{
 				Title:      fmt.Sprintf("%v sent a secret message", s.UserName),
 				Fallback:   fmt.Sprintf("%v sent a secret message", s.UserName),
@@ -67,6 +66,7 @@ func PrepareAndSendSecret(c *gin.Context, tx *apm.Transaction, s slack.SlashComm
 
 }
 
+// SlashSecret is the main entrypoint for the slash command /secret
 func SlashSecret(c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) {
 
 	tx.Context.SetLabel("userHash", hash(s.UserID))
@@ -86,12 +86,12 @@ func SlashSecret(c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) {
 	}
 
 	// Prepare and send message to channel using response_url link
-	err := PrepareAndSendSecret(c, tx, s)
+	err := PrepareAndSendSecretEnvelope(c, tx, s)
 	if err != nil {
 		res, code := secretslack.NewSlackErrorResponse(
 			":x: Sorry, an error occurred",
 			"An error occurred attempting to create secret",
-			"encrypt_error")
+			"prepare_and_send_error")
 		tx.Context.SetLabel("errorCode", "send_secret_payload_error")
 		c.Data(code, gin.MIMEJSON, res)
 		return
@@ -100,22 +100,32 @@ func SlashSecret(c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) {
 	// Send empty Ack to Slack if we got here without errors
 	c.Data(http.StatusOK, gin.MIMEPlain, nil)
 
-	r := apmgoredis.Wrap(secretredis.Client()).WithContext(c.Request.Context())
+	if AppReinstallNeeded(c, tx, s) {
+		SendReinstallMessage(c, tx, s)
+	}
+
+	return
+}
+
+func AppReinstallNeeded(c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) bool {
+	r := secretredis.Client().WithContext(c.Request.Context())
+	accessToken, err := r.HGet(s.TeamID, "access_token").Result()
+	if err != nil || accessToken == "" {
+		log.Warnf("Did not find access_token for team %v in redis...", s.TeamID)
+		return true
+	}
+	return false
+}
+
+func SendReinstallMessage(c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) {
 	responseEphemeral := slack.Message{
 		Msg: slack.Msg{
 			ResponseType: slack.ResponseTypeEphemeral,
 			Text:         fmt.Sprintf(":wave: Hey, we're working hard updating Secret Message. In order to keep using the app, <%v/auth/slack|please click here to reinstall>", config.AppURL),
 		},
 	}
-	_, err = r.HGet(s.TeamID, "access_token").Result()
-	if err != nil {
-		log.Warnf("Did not find access_token for team %v in redis... sending the please reinstall message now.", s.TeamID)
-		//User needs to reinstall the app, send them a message about that now
-		sendMessageEphemeralErr := secretslack.SendResponseUrlMessage(c.Request.Context(), s.ResponseURL, responseEphemeral)
-		if sendMessageEphemeralErr != nil {
-			log.Errorf("error sending ephemeral message to slack: %v", sendMessageEphemeralErr)
-		}
+	sendMessageEphemeralErr := secretslack.SendResponseUrlMessage(c.Request.Context(), s.ResponseURL, responseEphemeral)
+	if sendMessageEphemeralErr != nil {
+		log.Errorf("error sending ephemeral reinstall message: %v", sendMessageEphemeralErr)
 	}
-
-	return
 }

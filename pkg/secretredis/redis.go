@@ -2,6 +2,7 @@ package secretredis
 
 import (
 	"github.com/go-redis/redis"
+	"go.elastic.co/apm/module/apmgoredis"
 )
 
 var c *redis.Client
@@ -9,6 +10,7 @@ var c *redis.Client
 func Connect(r *redis.Options) {
 	c = redis.NewClient(r)
 }
-func Client() *redis.Client {
-	return c
+
+func Client() apmgoredis.Client {
+	return apmgoredis.Wrap(c)
 }
