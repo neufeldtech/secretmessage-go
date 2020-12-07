@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/neufeldtech/secretmessage-go/pkg/secretredis"
 	"github.com/prometheus/common/log"
 	"go.elastic.co/apm/module/apmgin"
 )
@@ -26,8 +27,8 @@ func StayAwake(config Config) {
 }
 
 func SetupRouter(config Config) *gin.Engine {
-	InitRedis(config)
-	InitSlackClient(config)
+	secretredis.Connect(config.RedisOptions)
+
 	r := gin.Default()
 	r.Use(apmgin.Middleware(r))
 
