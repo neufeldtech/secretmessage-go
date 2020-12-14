@@ -2,14 +2,20 @@ package main
 
 import (
 	"fmt"
+	"net/http"
+	"time"
+
 	"strconv"
 
-	"github.com/go-redis/redis"
-	"github.com/neufeldtech/secretmessage-go/pkg/secretmessage"
-	"github.com/prometheus/common/log"
-	"golang.org/x/oauth2"
-
 	"os"
+
+	"github.com/go-redis/redis"
+	"github.com/neufeldtech/secretmessage-go/pkg/secretdb"
+	"github.com/neufeldtech/secretmessage-go/pkg/secretmessage"
+	"github.com/neufeldtech/secretmessage-go/pkg/secretslack"
+	"github.com/prometheus/common/log"
+	"go.elastic.co/apm/module/apmhttp"
+	"golang.org/x/oauth2"
 )
 
 var (
@@ -36,7 +42,12 @@ func resolvePort() int64 {
 }
 
 func main() {
-
+	// Setup custom HTTP Client for calling Slack
+	secretslack.SetHTTPClient(apmhttp.WrapClient(
+		&http.Client{
+			Timeout: time.Second * 5,
+		},
+	))
 	configMap := map[string]string{
 		slackSigningSecretConfigKey: os.Getenv("SLACK_SIGNING_SECRET"),
 		slackClientIDConfigKey:      os.Getenv("SLACK_CLIENT_ID"),
@@ -54,6 +65,21 @@ func main() {
 	if err != nil {
 		log.Fatalf("error parsing REDIS_URL: %v", err)
 	}
+
+	db, err := secretdb.Connect(os.Getenv("DATABASE_URL"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Info("running db migrations")
+	err = secretdb.RunMigrations(db)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	controller := secretmessage.NewController(
+		db,
+		secretdb.NewSecretsRepository(db),
+	)
 
 	secretmessage.SetConfig(secretmessage.Config{
 		Port:            resolvePort(),
@@ -74,8 +100,9 @@ func main() {
 		},
 	},
 	)
+
 	go secretmessage.StayAwake(secretmessage.GetConfig())
-	r := secretmessage.SetupRouter(secretmessage.GetConfig())
+	r := controller.ConfigureRoutes(secretmessage.GetConfig())
 	log.Infof("Booted and listening on port %v", secretmessage.GetConfig().Port)
 	r.Run(fmt.Sprintf("0.0.0.0:%v", secretmessage.GetConfig().Port)) // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
 }

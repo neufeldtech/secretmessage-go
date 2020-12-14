@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"regexp"
 	"strings"
@@ -26,6 +27,13 @@ func deriveCryptoKey(key string) []byte {
 }
 func decrypt(input string, passphrase string) (string, error) {
 	var result string
+	if input == "" {
+		return result, fmt.Errorf("cannot decrypt empty string")
+	}
+	if passphrase == "" {
+		return result, fmt.Errorf("cannot decrypt with empty passphrase")
+	}
+
 	key := deriveCryptoKey(passphrase)
 	ciphertext, err := hex.DecodeString(input)
 	if err != nil {
@@ -59,6 +67,12 @@ func encrypt(input string, passphrase string) (string, error) {
 
 func encryptWithReader(rr io.Reader, input string, passphrase string) (string, error) {
 	var result string
+	if input == "" {
+		return result, fmt.Errorf("cannot encrypt empty string")
+	}
+	if passphrase == "" {
+		return result, fmt.Errorf("cannot encrypt with empty passphrase")
+	}
 	key := deriveCryptoKey(passphrase)
 	c, err := aes.NewCipher(key)
 	if err != nil {

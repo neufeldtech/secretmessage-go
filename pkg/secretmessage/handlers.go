@@ -1,12 +1,15 @@
 package secretmessage
 
 import (
+	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/lithammer/shortuuid"
+	"github.com/neufeldtech/secretmessage-go/pkg/secretdb"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretredis"
 	"github.com/prometheus/common/log"
 	"github.com/slack-go/slack"
@@ -15,25 +18,39 @@ import (
 	"golang.org/x/oauth2"
 )
 
-func HandleSlash(c *gin.Context) {
-	tx := apm.TransactionFromContext(c.Request.Context())
+type PublicController struct {
+	db               *sql.DB
+	secretRepository secretdb.SecretRepository
+}
+
+func NewController(db *sql.DB, secretRepository secretdb.SecretRepository) *PublicController {
+	return &PublicController{
+		db:               db,
+		secretRepository: secretRepository,
+	}
+}
+
+func (ctl *PublicController) HandleSlash(c *gin.Context) {
+	hc := c.Request.Context()
+	tx := apm.TransactionFromContext(hc)
 	s, err := slack.SlashCommandParse(c.Request)
 	if err != nil {
 		log.Errorf("error parsing slash command: %v", err)
+		apm.CaptureError(hc, err).Send()
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Bad Request"})
 		tx.Context.SetLabel("errorCode", "slash_payload_parse_error")
 		return
 	}
 	switch s.Command {
 	case "/secret":
-		SlashSecret(c, tx, s)
+		SlashSecret(ctl, c, tx, s)
 	default:
 		c.Data(http.StatusOK, gin.MIMEPlain, nil)
 	}
 	return
 }
 
-func HandleOauthBegin(c *gin.Context) {
+func (ctl *PublicController) HandleOauthBegin(c *gin.Context) {
 	state := shortuuid.New()
 	url := GetConfig().OauthConfig.AuthCodeURL(state, oauth2.AccessTypeOnline)
 
@@ -41,7 +58,8 @@ func HandleOauthBegin(c *gin.Context) {
 	c.Redirect(302, url)
 }
 
-func HandleOauthCallback(c *gin.Context) {
+func (ctl *PublicController) HandleOauthCallback(c *gin.Context) {
+	hc := c.Request.Context()
 	tx := apm.TransactionFromContext(c.Request.Context())
 	r := secretredis.Client().WithContext(c.Request.Context())
 	tx.Context.SetLabel("slackOauthVersion", "v2")
@@ -52,12 +70,14 @@ func HandleOauthCallback(c *gin.Context) {
 	stateCookie, err := c.Cookie("state")
 	if err != nil {
 		log.Errorf("error retrieving state cookie from request: %v", err)
+		apm.CaptureError(hc, err).Send()
 		c.Redirect(302, "https://secretmessage.xyz/error")
 		tx.Context.SetLabel("errorCode", "state_cookie_parse_error")
 		return
 	}
 	if stateCookie != stateQuery {
 		log.Error("error validating state cookie with state query param")
+		apm.CaptureError(hc, fmt.Errorf("state cookie was invalid")).Send()
 		c.Redirect(302, "https://secretmessage.xyz/error")
 		tx.Context.SetLabel("errorCode", "state_cookie_invalid")
 		return
@@ -65,6 +85,7 @@ func HandleOauthCallback(c *gin.Context) {
 	token, err := conf.OauthConfig.Exchange(context.Background(), c.Query("code"))
 	if err != nil {
 		log.Errorf("error retrieving initial oauth token: %v", err)
+		apm.CaptureError(hc, err).Send()
 		c.Redirect(302, "https://secretmessage.xyz/error")
 		tx.Context.SetLabel("errorCode", "oauth_token_exchange_error")
 		return
@@ -73,6 +94,7 @@ func HandleOauthCallback(c *gin.Context) {
 	team, ok := token.Extra("team").(map[string]interface{})
 	if !ok {
 		log.Errorf("error unmarshalling team from token: %v", token)
+		apm.CaptureError(hc, fmt.Errorf("could not unmarshal team from token: %v", token)).Send()
 		c.Redirect(302, "https://secretmessage.xyz/error")
 		tx.Context.SetLabel("errorCode", "token_team_unmarshal_error")
 		return
@@ -109,11 +131,17 @@ func HandleOauthCallback(c *gin.Context) {
 	c.Redirect(302, "https://secretmessage.xyz/success")
 }
 
-func HandleHealth(c *gin.Context) {
+func (ctl *PublicController) HandleHealth(c *gin.Context) {
+	err := ctl.db.Ping()
+	if err != nil {
+		log.Error(err)
+		c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"status": "DOWN"})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{"status": "UP"})
 }
 
-func HandleInteractive(c *gin.Context) {
+func (ctl *PublicController) HandleInteractive(c *gin.Context) {
 	tx := apm.TransactionFromContext(c.Request.Context())
 	var err error
 	var i slack.InteractionCallback
@@ -130,9 +158,9 @@ func HandleInteractive(c *gin.Context) {
 	callbackType := strings.Split(i.CallbackID, ":")[0]
 	switch callbackType {
 	case "send_secret":
-		CallbackSendSecret(tx, c, i)
+		CallbackSendSecret(ctl, tx, c, i)
 	case "delete_secret":
-		CallbackDeleteSecret(tx, c, i)
+		CallbackDeleteSecret(ctl, tx, c, i)
 	default:
 		log.Error("Hit the default case. bad things happened")
 		c.Data(http.StatusInternalServerError, gin.MIMEPlain, nil)

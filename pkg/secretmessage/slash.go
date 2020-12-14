@@ -3,9 +3,11 @@ package secretmessage
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/lithammer/shortuuid"
+	"github.com/neufeldtech/secretmessage-go/pkg/secretdb"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretredis"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretslack"
 	"github.com/prometheus/common/log"
@@ -14,8 +16,8 @@ import (
 )
 
 // PrepareAndSendSecretEnvelope encrypts the secret, stores in redis, and sends the 'envelope' back to slack
-func PrepareAndSendSecretEnvelope(c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) error {
-	r := secretredis.Client().WithContext(c.Request.Context())
+func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) error {
+	hc := c.Request.Context()
 
 	secretID := shortuuid.New()
 	tx.Context.SetLabel("secretIDHash", hash(secretID))
@@ -27,8 +29,15 @@ func PrepareAndSendSecretEnvelope(c *gin.Context, tx *apm.Transaction, s slack.S
 		return encryptErr
 	}
 
-	// Store the secret in Redis
-	storeErr := r.Set(hash(secretID), secretEncrypted, 0).Err()
+	// Store the secret
+	secretStoreTime := time.Now()
+	secret := secretdb.SecretModel{
+		ID:        hash(secretID),
+		CreatedAt: secretStoreTime,
+		ExpiresAt: secretStoreTime.Add(time.Hour * 24 * 7),
+		Value:     secretEncrypted,
+	}
+	storeErr := ctl.secretRepository.Create(hc, &secret)
 	if storeErr != nil {
 		tx.Context.SetLabel("errorCode", "redis_set_error")
 		log.Errorf("error storing secretID %v in redis: %v", secretID, storeErr)
@@ -55,7 +64,7 @@ func PrepareAndSendSecretEnvelope(c *gin.Context, tx *apm.Transaction, s slack.S
 
 	sendSpan := tx.StartSpan("send_message", "client_request", nil)
 	defer sendSpan.End()
-	sendMessageErr := secretslack.SendResponseUrlMessage(c.Request.Context(), s.ResponseURL, secretResponse)
+	sendMessageErr := secretslack.SendResponseUrlMessage(hc, s.ResponseURL, secretResponse)
 	if sendMessageErr != nil {
 		sendSpan.Context.SetLabel("errorCode", "send_message_error")
 		log.Errorf("error sending secret to slack: %v", sendMessageErr)
@@ -67,7 +76,7 @@ func PrepareAndSendSecretEnvelope(c *gin.Context, tx *apm.Transaction, s slack.S
 }
 
 // SlashSecret is the main entrypoint for the slash command /secret
-func SlashSecret(c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) {
+func SlashSecret(ctl *PublicController, c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) {
 
 	tx.Context.SetLabel("userHash", hash(s.UserID))
 	tx.Context.SetLabel("teamHash", hash(s.TeamID))
@@ -86,14 +95,16 @@ func SlashSecret(c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) {
 	}
 
 	// Prepare and send message to channel using response_url link
-	err := PrepareAndSendSecretEnvelope(c, tx, s)
+	err := PrepareAndSendSecretEnvelope(ctl, c, tx, s)
 	if err != nil {
+		log.Error(err)
 		res, code := secretslack.NewSlackErrorResponse(
 			":x: Sorry, an error occurred",
 			"An error occurred attempting to create secret",
 			"prepare_and_send_error")
 		tx.Context.SetLabel("errorCode", "send_secret_payload_error")
 		c.Data(code, gin.MIMEJSON, res)
+		c.Abort()
 		return
 	}
 

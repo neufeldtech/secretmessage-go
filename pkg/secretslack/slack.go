@@ -8,21 +8,25 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/neufeldtech/secretmessage-go/pkg/secretredis"
 	"github.com/prometheus/common/log"
 	"github.com/slack-go/slack"
-	"go.elastic.co/apm/module/apmhttp"
 )
 
 var (
 	apiClients = make(map[string]*slack.Client)
 	mux        sync.Mutex
-	httpClient = apmhttp.WrapClient(&http.Client{
-		Timeout: time.Second * 5,
-	})
+	httpClient = http.DefaultClient
+	// httpClient = apmhttp.WrapClient(&http.Client{
+	// 	Timeout: time.Second * 5,
+	// })
+
 )
+
+func SetHTTPClient(hc *http.Client) {
+	httpClient = hc
+}
 
 // Client returns a team-specific Slack API client for a given teamID. If one does not yet exist, it attempts to build one if we have an access_token stored for said team.
 func Client(teamID string) (*slack.Client, error) {
@@ -57,7 +61,7 @@ func SendResponseUrlMessage(ctx context.Context, uri string, msg slack.Message) 
 	if err != nil {
 		return err
 	}
-
+	log.Info(uri)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, uri, bytes.NewBuffer(msgBytes))
 	if err != nil {
 		return err

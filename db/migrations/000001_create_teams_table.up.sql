@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS teams(
+   id VARCHAR (25) PRIMARY KEY,
+   access_token VARCHAR (100) NOT NULL,
+   scope VARCHAR (250) NOT NULL,
+   name VARCHAR (100) NOT NULL,
+   paid BOOLEAN DEFAULT false
+);

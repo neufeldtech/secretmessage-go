@@ -7,23 +7,23 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/neufeldtech/secretmessage-go/pkg/secretredis"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretslack"
 	"github.com/prometheus/common/log"
 	"github.com/slack-go/slack"
 	"go.elastic.co/apm"
 )
 
-func CallbackSendSecret(tx *apm.Transaction, c *gin.Context, i slack.InteractionCallback) {
-	r := secretredis.Client().WithContext(c.Request.Context())
+func CallbackSendSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Context, i slack.InteractionCallback) {
+	hc := c.Request.Context()
 	tx.Context.SetLabel("callbackID", "send_secret")
 	tx.Context.SetLabel("action", "sendSecret")
 
 	secretID := strings.ReplaceAll(i.CallbackID, "send_secret:", "")
 	tx.Context.SetLabel("secretIDHash", hash(secretID))
 
-	// Fetch secret from redis
-	secretEncrypted, getSecretErr := r.Get(hash(secretID)).Result()
+	// Fetch secret
+
+	secretEncrypted, getSecretErr := ctl.secretRepository.FindByID(hc, hash(secretID))
 	if getSecretErr != nil {
 		tx.Context.SetLabel("errorCode", "redis_get_error")
 		log.Errorf("error retrieving secret from redis: %v", getSecretErr)
@@ -38,10 +38,10 @@ func CallbackSendSecret(tx *apm.Transaction, c *gin.Context, i slack.Interaction
 	// Decrypt the secret
 	var secretDecrypted string
 	var decryptionErr error
-	if strings.Contains(secretEncrypted, ":") {
-		secretDecrypted, decryptionErr = decryptIV(secretEncrypted, config.LegacyCryptoKey)
+	if strings.Contains(secretEncrypted.Value, ":") {
+		secretDecrypted, decryptionErr = decryptIV(secretEncrypted.Value, config.LegacyCryptoKey)
 	} else {
-		secretDecrypted, decryptionErr = decrypt(secretEncrypted, secretID)
+		secretDecrypted, decryptionErr = decrypt(secretEncrypted.Value, secretID)
 	}
 	if decryptionErr != nil {
 		log.Errorf("error decrypting secretID %v: %v", secretID, decryptionErr)
@@ -86,11 +86,15 @@ func CallbackSendSecret(tx *apm.Transaction, c *gin.Context, i slack.Interaction
 		return
 	}
 	c.Data(http.StatusOK, gin.MIMEJSON, responseBytes)
-	r.Del(hash(secretID))
+
+	err = ctl.secretRepository.Delete(hc, hash(secretID))
+	if err != nil {
+		log.Error(err)
+	}
 	return
 }
 
-func CallbackDeleteSecret(tx *apm.Transaction, c *gin.Context, i slack.InteractionCallback) {
+func CallbackDeleteSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Context, i slack.InteractionCallback) {
 	secretID := strings.ReplaceAll(i.CallbackID, "delete_secret:", "")
 	tx.Context.SetLabel("secretIDHash", hash(secretID))
 	tx.Context.SetLabel("callbackID", "delete_secret")
