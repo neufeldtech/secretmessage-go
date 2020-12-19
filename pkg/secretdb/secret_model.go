@@ -20,9 +20,9 @@ type secretRepository struct {
 }
 
 type SecretRepository interface {
-	Close()
-	FindByID(httpContext context.Context, id string) (*SecretModel, error)
-	Find(httpContext context.Context) ([]SecretModel, error)
+	// Close()
+	FindByID(httpContext context.Context, id string) (SecretModel, error)
+	// Find(httpContext context.Context) ([]SecretModel, error)
 	Create(httpContext context.Context, secret *SecretModel) error
 	Update(httpContext context.Context, secret *SecretModel) error
 	Delete(httpContext context.Context, id string) error
@@ -33,14 +33,9 @@ func NewSecretsRepository(db *sql.DB) SecretRepository {
 	return &secretRepository{db}
 }
 
-// Close attaches the provider and close the connection
-func (r *secretRepository) Close() {
-	r.db.Close()
-}
-
 // FindByID attaches the user repository and find data based on id
-func (r *secretRepository) FindByID(httpContext context.Context, id string) (*SecretModel, error) {
-	secret := new(SecretModel)
+func (r *secretRepository) FindByID(httpContext context.Context, id string) (SecretModel, error) {
+	secret := SecretModel{}
 
 	ctx, cancel := context.WithTimeout(httpContext, 5*time.Second)
 	defer cancel()
@@ -52,43 +47,43 @@ func (r *secretRepository) FindByID(httpContext context.Context, id string) (*Se
 		&secret.Value,
 	)
 	if err != nil {
-		return nil, err
+		return secret, err
 	}
 	return secret, nil
 }
 
 // Find attaches the user repository and find all data
-func (r *secretRepository) Find(httpContext context.Context) ([]SecretModel, error) {
-	//TODO IMPLEMENT APM CONTEXT ATTACHMENT
+// func (r *secretRepository) Find(httpContext context.Context) ([]SecretModel, error) {
+// 	//TODO IMPLEMENT APM CONTEXT ATTACHMENT
 
-	secrets := []SecretModel{}
+// 	secrets := []SecretModel{}
 
-	ctx, cancel := context.WithTimeout(httpContext, 5*time.Second)
-	defer cancel()
+// 	ctx, cancel := context.WithTimeout(httpContext, 5*time.Second)
+// 	defer cancel()
 
-	rows, err := r.db.QueryContext(ctx, "SELECT id, created_at, expires_at, value FROM secrets")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+// 	rows, err := r.db.QueryContext(ctx, "SELECT id, created_at, expires_at, value FROM secrets")
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	defer rows.Close()
 
-	for rows.Next() {
-		secret := SecretModel{}
-		err = rows.Scan(
-			&secret.ID,
-			&secret.CreatedAt,
-			&secret.ExpiresAt,
-			&secret.Value,
-		)
+// 	for rows.Next() {
+// 		secret := SecretModel{}
+// 		err = rows.Scan(
+// 			&secret.ID,
+// 			&secret.CreatedAt,
+// 			&secret.ExpiresAt,
+// 			&secret.Value,
+// 		)
 
-		if err != nil {
-			return nil, err
-		}
-		secrets = append(secrets, secret)
-	}
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 		secrets = append(secrets, secret)
+// 	}
 
-	return secrets, nil
-}
+// 	return secrets, nil
+// }
 
 // Create attaches the secret repository and creating the data
 func (r *secretRepository) Create(httpContext context.Context, secret *SecretModel) error {

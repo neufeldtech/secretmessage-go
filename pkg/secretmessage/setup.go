@@ -25,11 +25,11 @@ func callHealth() error {
 
 func StayAwake(config Config) {
 	for {
+		time.Sleep(5 * time.Minute)
 		err := callHealth()
 		if err != nil {
 			log.Error(err)
 		}
-		time.Sleep(5 * time.Minute)
 	}
 }
 

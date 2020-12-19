@@ -68,6 +68,7 @@ func postRequest(r http.Handler, body io.Reader, headers map[string]string, meth
 
 func TestHandleSlashSecret(t *testing.T) {
 	responseURL := "https://fake-webhooks.fakeslack.com/response_url_1"
+	teamID := "T1234ABCD"
 	requestBody := url.Values{
 		"command":         []string{"/secret"},
 		"team_domain":     []string{"myteam"},
@@ -75,7 +76,7 @@ func TestHandleSlashSecret(t *testing.T) {
 		"enterprise_name": []string{"Globular%20Construct%20Inc"},
 		"channel_id":      []string{"C1234ABCD"},
 		"text":            []string{"this is my secret"},
-		"team_id":         []string{"T1234ABCD"},
+		"team_id":         []string{teamID},
 		"user_id":         []string{"U1234ABCD"},
 		"user_name":       []string{"imafish"},
 		"response_url":    []string{responseURL},
@@ -102,9 +103,13 @@ func TestHandleSlashSecret(t *testing.T) {
 				mock.ExpectPrepare(stmt)
 				mock.ExpectExec(stmt).WithArgs(AnySecretID{}, AnyTime{}, AnyTime{}, AnySecretValue{}).WillReturnResult(sqlmock.NewResult(1, 1))
 
+				stmt = "SELECT id, access_token, scope, name, paid FROM teams WHERE id = \\$1"
+				mock.ExpectQuery(stmt).WithArgs(teamID).WillReturnError(fmt.Errorf("no rows fam"))
+
 				ctl := NewController(
 					db,
 					secretdb.NewSecretsRepository(db),
+					secretdb.NewTeamsRepository(db),
 				)
 				return ctl, requestBody, mock, db
 			},
@@ -132,6 +137,7 @@ func TestHandleSlashSecret(t *testing.T) {
 				ctl := NewController(
 					db,
 					secretdb.NewSecretsRepository(db),
+					secretdb.NewTeamsRepository(db),
 				)
 				return ctl, requestBody, mock, db
 			},
@@ -141,7 +147,6 @@ func TestHandleSlashSecret(t *testing.T) {
 				json.Unmarshal(b, &response)
 				assert.Regexp(t, regexp.MustCompile(`An error occurred attempting to create secret`), response.Attachments[0].Text)
 				assert.NoError(t, mock.ExpectationsWereMet())
-
 			},
 		},
 		{
@@ -160,6 +165,7 @@ func TestHandleSlashSecret(t *testing.T) {
 				ctl := NewController(
 					db,
 					secretdb.NewSecretsRepository(db),
+					secretdb.NewTeamsRepository(db),
 				)
 				return ctl, requestBody, mock, db
 			},
@@ -227,6 +233,7 @@ func TestHandleInteractiveGetSecret(t *testing.T) {
 				ctl := NewController(
 					db,
 					secretdb.NewSecretsRepository(db),
+					secretdb.NewTeamsRepository(db),
 				)
 				return ctl, requestBody, mock, db
 			},
@@ -252,6 +259,7 @@ func TestHandleInteractiveGetSecret(t *testing.T) {
 				ctl := NewController(
 					db,
 					secretdb.NewSecretsRepository(db),
+					secretdb.NewTeamsRepository(db),
 				)
 				return ctl, requestBody, mock, db
 			},
@@ -276,6 +284,7 @@ func TestHandleInteractiveGetSecret(t *testing.T) {
 				ctl := NewController(
 					db,
 					secretdb.NewSecretsRepository(db),
+					secretdb.NewTeamsRepository(db),
 				)
 				return ctl, requestBody, mock, db
 			},
@@ -330,6 +339,7 @@ func TestHandleInteractiveDeleteSecret(t *testing.T) {
 				ctl := NewController(
 					db,
 					secretdb.NewSecretsRepository(db),
+					secretdb.NewTeamsRepository(db),
 				)
 				return ctl, requestBody, mock, db
 			},

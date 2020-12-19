@@ -79,6 +79,7 @@ func main() {
 	controller := secretmessage.NewController(
 		db,
 		secretdb.NewSecretsRepository(db),
+		secretdb.NewTeamsRepository(db),
 	)
 
 	secretmessage.SetConfig(secretmessage.Config{

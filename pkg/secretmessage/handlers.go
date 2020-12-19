@@ -10,7 +10,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lithammer/shortuuid"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretdb"
-	"github.com/neufeldtech/secretmessage-go/pkg/secretredis"
 	"github.com/prometheus/common/log"
 	"github.com/slack-go/slack"
 	"go.elastic.co/apm"
@@ -21,12 +20,14 @@ import (
 type PublicController struct {
 	db               *sql.DB
 	secretRepository secretdb.SecretRepository
+	teamRepository   secretdb.TeamRepository
 }
 
-func NewController(db *sql.DB, secretRepository secretdb.SecretRepository) *PublicController {
+func NewController(db *sql.DB, secretRepository secretdb.SecretRepository, teamRepository secretdb.TeamRepository) *PublicController {
 	return &PublicController{
 		db:               db,
 		secretRepository: secretRepository,
+		teamRepository:   teamRepository,
 	}
 }
 
@@ -61,7 +62,7 @@ func (ctl *PublicController) HandleOauthBegin(c *gin.Context) {
 func (ctl *PublicController) HandleOauthCallback(c *gin.Context) {
 	hc := c.Request.Context()
 	tx := apm.TransactionFromContext(c.Request.Context())
-	r := secretredis.Client().WithContext(c.Request.Context())
+
 	tx.Context.SetLabel("slackOauthVersion", "v2")
 	tx.Context.SetLabel("action", "handleOauthCallback")
 
@@ -116,18 +117,50 @@ func (ctl *PublicController) HandleOauthCallback(c *gin.Context) {
 		return
 	}
 
-	fields := map[string]interface{}{
-		"access_token": token.AccessToken,
-		"name":         teamName,
-		"scope":        token.Extra("scope"),
-	}
-	err = r.HMSet(teamID, fields).Err()
-	if err != nil {
-		log.Errorf("error setting token in redis: %v", err)
+	scope, ok := token.Extra("scope").(string)
+	if !ok {
+		log.Errorf("error unmarshalling scope from token: %v", token)
 		c.Redirect(302, "https://secretmessage.xyz/error")
 		tx.Context.SetLabel("errorCode", "token_team_unmarshal_error")
 		return
 	}
+
+	teamRecord, err := ctl.teamRepository.FindByID(c, teamID)
+	switch err {
+	case nil:
+		// Team already exists in db
+		teamRecord.Name = teamName // Update name in case it changed
+		teamRecord.AccessToken = token.AccessToken
+		teamRecord.Scope = scope
+
+		err = ctl.teamRepository.Update(c, &teamRecord)
+		if err != nil {
+			log.Errorf("error updating team in db: %v", err)
+			c.Redirect(302, "https://secretmessage.xyz/error")
+			tx.Context.SetLabel("errorCode", "team_update_error")
+			return
+		}
+	case sql.ErrNoRows:
+		// No team in DB yet
+		teamRecord.ID = teamID
+		teamRecord.Name = teamName
+		teamRecord.AccessToken = token.AccessToken
+		teamRecord.Scope = scope
+		teamRecord.Paid = false
+		err = ctl.teamRepository.Create(c, &teamRecord)
+		if err != nil {
+			log.Errorf("error creating team in db: %v", err)
+			c.Redirect(302, "https://secretmessage.xyz/error")
+			tx.Context.SetLabel("errorCode", "team_create_error")
+			return
+		}
+	default:
+		log.Errorf("error checking db for existing team: %v", err)
+		c.Redirect(302, "https://secretmessage.xyz/error")
+		tx.Context.SetLabel("errorCode", "team_get_error")
+		return
+	}
+
 	c.Redirect(302, "https://secretmessage.xyz/success")
 }
 

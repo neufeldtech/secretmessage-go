@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/neufeldtech/secretmessage-go/pkg/secretredis"
 	"github.com/prometheus/common/log"
 	"github.com/slack-go/slack"
 )
@@ -29,30 +28,31 @@ func SetHTTPClient(hc *http.Client) {
 }
 
 // Client returns a team-specific Slack API client for a given teamID. If one does not yet exist, it attempts to build one if we have an access_token stored for said team.
-func Client(teamID string) (*slack.Client, error) {
-	if teamID == "" {
-		return nil, errors.New("Invalid Team ID")
-	}
+// func Client(teamID string) (*slack.Client, error) {
+// 	if teamID == "" {
+// 		return nil, errors.New("Invalid Team ID")
+// 	}
 
-	var apiClient *slack.Client
-	apiClient = apiClients[teamID]
+// 	var apiClient *slack.Client
+// 	apiClient = apiClients[teamID]
 
-	if apiClient == nil {
-		r := secretredis.Client()
-		token, err := r.HGet(teamID, "access_token").Result()
-		if err != nil {
-			return nil, fmt.Errorf("error getting token from redis for team %v: %v", teamID, err)
-		}
+// 	if apiClient == nil {
+// 		r := secretredis.Client()
 
-		apiClient = slack.New(token, slack.OptionDebug(false), slack.OptionHTTPClient(httpClient))
-		mux.Lock()
-		defer mux.Unlock()
-		apiClients[teamID] = apiClient
-		return apiClient, nil
-	}
+// 		token, err := r.HGet(teamID, "access_token").Result()
+// 		if err != nil {
+// 			return nil, fmt.Errorf("error getting token from store for team %v: %v", teamID, err)
+// 		}
 
-	return apiClient, nil
-}
+// 		apiClient = slack.New(token, slack.OptionDebug(false), slack.OptionHTTPClient(httpClient))
+// 		mux.Lock()
+// 		defer mux.Unlock()
+// 		apiClients[teamID] = apiClient
+// 		return apiClient, nil
+// 	}
+
+// 	return apiClient, nil
+// }
 
 // SendResponseUrlMessage sends a slack message via a response_url - It does not require a token
 func SendResponseUrlMessage(ctx context.Context, uri string, msg slack.Message) error {

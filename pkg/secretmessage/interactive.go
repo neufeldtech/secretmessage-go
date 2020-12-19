@@ -26,7 +26,7 @@ func CallbackSendSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Conte
 	secretEncrypted, getSecretErr := ctl.secretRepository.FindByID(hc, hash(secretID))
 	if getSecretErr != nil {
 		tx.Context.SetLabel("errorCode", "redis_get_error")
-		log.Errorf("error retrieving secret from redis: %v", getSecretErr)
+		log.Errorf("error retrieving secret from store: %v", getSecretErr)
 		res, code := secretslack.NewSlackErrorResponse(
 			":x: Sorry, an error occurred",
 			"An error occurred attempting to retrieve secret",

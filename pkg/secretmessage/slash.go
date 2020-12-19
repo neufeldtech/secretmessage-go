@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lithammer/shortuuid"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretdb"
-	"github.com/neufeldtech/secretmessage-go/pkg/secretredis"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretslack"
 	"github.com/prometheus/common/log"
 	"github.com/slack-go/slack"
@@ -111,18 +110,17 @@ func SlashSecret(ctl *PublicController, c *gin.Context, tx *apm.Transaction, s s
 	// Send empty Ack to Slack if we got here without errors
 	c.Data(http.StatusOK, gin.MIMEPlain, nil)
 
-	if AppReinstallNeeded(c, tx, s) {
+	if AppReinstallNeeded(ctl, c, tx, s) {
 		SendReinstallMessage(c, tx, s)
 	}
 
 	return
 }
 
-func AppReinstallNeeded(c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) bool {
-	r := secretredis.Client().WithContext(c.Request.Context())
-	accessToken, err := r.HGet(s.TeamID, "access_token").Result()
-	if err != nil || accessToken == "" {
-		log.Warnf("Did not find access_token for team %v in redis...", s.TeamID)
+func AppReinstallNeeded(ctl *PublicController, c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) bool {
+	team, err := ctl.teamRepository.FindByID(c, s.TeamID)
+	if err != nil || team.AccessToken == "" {
+		log.Warnf("%v: could not find access_token for team %v in store", err, s.TeamID)
 		return true
 	}
 	return false
