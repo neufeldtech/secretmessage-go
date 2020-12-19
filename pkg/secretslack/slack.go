@@ -44,7 +44,7 @@ func Client(teamID string) (*slack.Client, error) {
 			return nil, fmt.Errorf("error getting token from redis for team %v: %v", teamID, err)
 		}
 
-		apiClient = slack.New(token, slack.OptionDebug(false))
+		apiClient = slack.New(token, slack.OptionDebug(false), slack.OptionHTTPClient(httpClient))
 		mux.Lock()
 		defer mux.Unlock()
 		apiClients[teamID] = apiClient
@@ -61,7 +61,6 @@ func SendResponseUrlMessage(ctx context.Context, uri string, msg slack.Message) 
 	if err != nil {
 		return err
 	}
-	log.Info(uri)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, uri, bytes.NewBuffer(msgBytes))
 	if err != nil {
 		return err

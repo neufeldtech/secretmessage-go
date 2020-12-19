@@ -1,14 +1,17 @@
 package secretmessage
 
 import (
+	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -21,6 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// SQLMock Helpers
 type AnyTime struct{}
 
 // Match satisfies sqlmock.Argument interface
@@ -51,8 +55,8 @@ func (a AnySecretValue) Match(v driver.Value) bool {
 	return false
 }
 
+// POST helper
 func postRequest(r http.Handler, body io.Reader, headers map[string]string, method, path string) *httptest.ResponseRecorder {
-
 	req, _ := http.NewRequest(method, path, body)
 	for h, v := range headers {
 		req.Header.Add(h, v)
@@ -62,15 +66,8 @@ func postRequest(r http.Handler, body io.Reader, headers map[string]string, meth
 	return w
 }
 
-func TestHandleSlash(t *testing.T) {
-	slackResponseURL := "https://fake-webhooks.fakeslack.com/response_url_1"
-	// needed for mocking
-	// secretslack.OverrideHTTPClient(http.DefaultClient)
-	httpmock.Activate()
-	defer httpmock.DeactivateAndReset()
-	// // Exact URL match
-	httpmock.RegisterResponder("POST", slackResponseURL, httpmock.NewStringResponder(200, `ok`))
-
+func TestHandleSlashSecret(t *testing.T) {
+	responseURL := "https://fake-webhooks.fakeslack.com/response_url_1"
 	requestBody := url.Values{
 		"command":         []string{"/secret"},
 		"team_domain":     []string{"myteam"},
@@ -81,140 +78,279 @@ func TestHandleSlash(t *testing.T) {
 		"team_id":         []string{"T1234ABCD"},
 		"user_id":         []string{"U1234ABCD"},
 		"user_name":       []string{"imafish"},
-		"response_url":    []string{slackResponseURL},
+		"response_url":    []string{responseURL},
 		"token":           []string{"xoxb-1234"},
 		"channel_name":    []string{"fishbowl"},
 		"trigger_id":      []string{"0000000000.1111111111.222222222222aaaaaaaaaaaaaa"},
 	}
+	tests := []struct {
+		name   string
+		setup  func() (*PublicController, url.Values, sqlmock.Sqlmock, *sql.DB)
+		verify func(*testing.T, *httptest.ResponseRecorder, sqlmock.Sqlmock)
+		// requestBody url.Values
+	}{
+		{
+			name: "happy path",
+			setup: func() (*PublicController, url.Values, sqlmock.Sqlmock, *sql.DB) {
+				httpmock.Activate()
+				httpmock.RegisterResponder("POST", responseURL, httpmock.NewStringResponder(200, `ok`))
+				db, mock, err := sqlmock.New()
+				if err != nil {
+					log.Fatalf("error initializing sqlmock %v", err)
+				}
+				stmt := "INSERT INTO secrets \\(id, created_at, expires_at, value\\) VALUES \\(\\$1, \\$2, \\$3, \\$4\\)"
+				mock.ExpectPrepare(stmt)
+				mock.ExpectExec(stmt).WithArgs(AnySecretID{}, AnyTime{}, AnyTime{}, AnySecretValue{}).WillReturnResult(sqlmock.NewResult(1, 1))
 
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		log.Fatalf("error initializing sqlmock %v", err)
-	}
-	defer db.Close()
-	stmt := "INSERT INTO secrets \\(id, created_at, expires_at, value\\) VALUES \\(\\$1, \\$2, \\$3, \\$4\\)"
-	mock.ExpectPrepare(stmt)
-	mock.ExpectExec(stmt).WithArgs(AnySecretID{}, AnyTime{}, AnyTime{}, AnySecretValue{}).WillReturnResult(sqlmock.NewResult(1, 1))
-	ctl := NewController(
-		db,
-		secretdb.NewSecretsRepository(db),
-	)
+				ctl := NewController(
+					db,
+					secretdb.NewSecretsRepository(db),
+				)
+				return ctl, requestBody, mock, db
+			},
+			verify: func(t *testing.T, r *httptest.ResponseRecorder, mock sqlmock.Sqlmock) {
+				assert.Equal(t, http.StatusOK, r.Code)
+				b, err := ioutil.ReadAll(r.Body)
+				assert.NoError(t, err)
+				assert.Len(t, b, 0)
+				assert.NoError(t, mock.ExpectationsWereMet())
+			},
+		},
+		{
+			name: "db problem",
+			setup: func() (*PublicController, url.Values, sqlmock.Sqlmock, *sql.DB) {
+				httpmock.Activate()
+				httpmock.RegisterResponder("POST", responseURL, httpmock.NewStringResponder(200, `ok`))
+				db, mock, err := sqlmock.New()
+				if err != nil {
+					log.Fatalf("error initializing sqlmock %v", err)
+				}
+				stmt := "INSERT INTO secrets \\(id, created_at, expires_at, value\\) VALUES \\(\\$1, \\$2, \\$3, \\$4\\)"
+				mock.ExpectPrepare(stmt)
+				mock.ExpectExec(stmt).WithArgs(AnySecretID{}, AnyTime{}, AnyTime{}, AnySecretValue{}).WillReturnError(fmt.Errorf("the database encountered an error executing insert"))
 
-	router := ctl.ConfigureRoutes(Config{SkipSignatureValidation: true})
-	// Perform a POST to /slash endpoint as Slack.
-	w := postRequest(router, strings.NewReader(requestBody.Encode()), map[string]string{"Content-Type": "application/x-www-form-urlencoded"}, "POST", "/slash")
-	assert.Equal(t, http.StatusOK, w.Code)
-	var response slack.Message
-	b, err := ioutil.ReadAll(w.Body)
-	assert.Len(t, b, 0)
-	// The body will be 0 bytes on the happy path
-	if len(b) > 0 {
-		err = json.Unmarshal(b, &response)
-		assert.Nil(t, err)
-		assert.Len(t, response.Attachments, 0)
-		assert.Len(t, response.Text, 0)
+				ctl := NewController(
+					db,
+					secretdb.NewSecretsRepository(db),
+				)
+				return ctl, requestBody, mock, db
+			},
+			verify: func(t *testing.T, r *httptest.ResponseRecorder, mock sqlmock.Sqlmock) {
+				var response slack.Message
+				b, _ := ioutil.ReadAll(r.Body)
+				json.Unmarshal(b, &response)
+				assert.Regexp(t, regexp.MustCompile(`An error occurred attempting to create secret`), response.Attachments[0].Text)
+				assert.NoError(t, mock.ExpectationsWereMet())
+
+			},
+		},
+		{
+			name: "send message to slack problem",
+			setup: func() (*PublicController, url.Values, sqlmock.Sqlmock, *sql.DB) {
+				httpmock.Activate()
+				httpmock.RegisterResponder("POST", responseURL, httpmock.NewStringResponder(500, `error`))
+				db, mock, err := sqlmock.New()
+				if err != nil {
+					log.Fatalf("error initializing sqlmock %v", err)
+				}
+				stmt := "INSERT INTO secrets \\(id, created_at, expires_at, value\\) VALUES \\(\\$1, \\$2, \\$3, \\$4\\)"
+				mock.ExpectPrepare(stmt)
+				mock.ExpectExec(stmt).WithArgs(AnySecretID{}, AnyTime{}, AnyTime{}, AnySecretValue{}).WillReturnResult(sqlmock.NewResult(1, 1))
+
+				ctl := NewController(
+					db,
+					secretdb.NewSecretsRepository(db),
+				)
+				return ctl, requestBody, mock, db
+			},
+			verify: func(t *testing.T, r *httptest.ResponseRecorder, mock sqlmock.Sqlmock) {
+				var response slack.Message
+				b, _ := ioutil.ReadAll(r.Body)
+				json.Unmarshal(b, &response)
+				assert.Regexp(t, regexp.MustCompile(`An error occurred attempting to create secret`), response.Attachments[0].Text)
+				assert.NoError(t, mock.ExpectationsWereMet())
+			},
+		},
 	}
-	assert.Nil(t, mock.ExpectationsWereMet())
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctl, requestBody, mock, db := tt.setup()
+			defer db.Close()
+			defer httpmock.DeactivateAndReset()
+			router := ctl.ConfigureRoutes(Config{SkipSignatureValidation: true})
+			recordedResponse := postRequest(router, strings.NewReader(requestBody.Encode()), map[string]string{"Content-Type": "application/x-www-form-urlencoded"}, "POST", "/slash")
+			tt.verify(t, recordedResponse, mock)
+		})
+	}
+
 }
 
-// func TestHandleInteractiveGetSecret(t *testing.T) {
-// 	s, err := miniredis.Run()
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	defer s.Close()
-// 	// Grab our router
-// 	config := Config{
-// 		RedisOptions: &redis.Options{
-// 			Addr: s.Addr(),
-// 		},
-// 		SigningSecret:           "secret",
-// 		SkipSignatureValidation: true,
-// 	}
-// 	router := SetupRouter(config)
+func TestHandleInteractiveGetSecret(t *testing.T) {
+	secretID := "monkey"
+	secretIDHashed := "000c285457fc971f862a79b786476c78812c8897063c6fa9c045f579a3b2d63f"
+	encryptedPayload := "30303030303030303030303029c9922a9be75ba2e6be5afd32d19387baea51fa577c0c51dc9809a54adb9085490f109237d15a3262a585"
+	interactionPayload := slack.InteractionCallback{
+		CallbackID: fmt.Sprintf("send_secret:%v", secretID),
+	}
+	interactionBytes, err := json.Marshal(interactionPayload)
+	if err != nil {
+		panic(err)
+	}
+	requestBody := url.Values{
+		"payload": []string{string(interactionBytes)},
+	}
 
-// 	secretID := shortuuid.New()
-// 	redisClient := secretredis.Client()
-// 	secretEncrypted, err := encrypt("this is my secret", secretID)
-// 	if err != nil {
-// 		assert.Fail(t, err.Error())
-// 	}
-// 	redisClient.Set(hash(secretID), secretEncrypted, 0)
+	tests := []struct {
+		name   string
+		setup  func() (*PublicController, url.Values, sqlmock.Sqlmock, *sql.DB)
+		verify func(*testing.T, *httptest.ResponseRecorder, sqlmock.Sqlmock)
+	}{
+		{
+			name: "happy path",
+			setup: func() (*PublicController, url.Values, sqlmock.Sqlmock, *sql.DB) {
+				db, mock, err := sqlmock.New()
+				if err != nil {
+					log.Fatalf("error initializing sqlmock %v", err)
+				}
 
-// 	interactionPayload := slack.InteractionCallback{
-// 		CallbackID: fmt.Sprintf("send_secret:%v", secretID),
-// 	}
+				stmt := "SELECT id, created_at, expires_at, value FROM secrets WHERE id = \\$1"
+				rows := sqlmock.NewRows([]string{"id", "created_at", "expires_at", "value"}).AddRow(
+					secretIDHashed,
+					time.Now(),
+					time.Now(),
+					encryptedPayload,
+				)
+				mock.ExpectQuery(stmt).WithArgs(secretIDHashed).WillReturnRows(rows)
+				stmt = "DELETE FROM secrets WHERE id = \\$1"
+				mock.ExpectPrepare(stmt)
+				mock.ExpectExec(stmt).WithArgs(secretIDHashed).WillReturnResult(sqlmock.NewResult(1, 1))
+				ctl := NewController(
+					db,
+					secretdb.NewSecretsRepository(db),
+				)
+				return ctl, requestBody, mock, db
+			},
+			verify: func(t *testing.T, r *httptest.ResponseRecorder, mock sqlmock.Sqlmock) {
+				var response slack.Message
+				b, _ := ioutil.ReadAll(r.Body)
+				json.Unmarshal(b, &response)
+				assert.Regexp(t, regexp.MustCompile(`the password is baseball123`), response.Attachments[0].Text)
+				assert.NoError(t, mock.ExpectationsWereMet())
+			},
+		},
+		{
+			name: "secret not found",
+			setup: func() (*PublicController, url.Values, sqlmock.Sqlmock, *sql.DB) {
+				db, mock, err := sqlmock.New()
+				if err != nil {
+					log.Fatalf("error initializing sqlmock %v", err)
+				}
 
-// 	interactionBytes, err := json.Marshal(interactionPayload)
-// 	if err != nil {
-// 		assert.Fail(t, err.Error())
-// 	}
+				stmt := "SELECT id, created_at, expires_at, value FROM secrets WHERE id = \\$1"
+				rows := sqlmock.NewRows([]string{"id", "created_at", "expires_at", "value"})
+				mock.ExpectQuery(stmt).WithArgs(secretIDHashed).WillReturnRows(rows)
+				ctl := NewController(
+					db,
+					secretdb.NewSecretsRepository(db),
+				)
+				return ctl, requestBody, mock, db
+			},
+			verify: func(t *testing.T, r *httptest.ResponseRecorder, mock sqlmock.Sqlmock) {
+				var response slack.Message
+				b, _ := ioutil.ReadAll(r.Body)
+				json.Unmarshal(b, &response)
+				assert.Regexp(t, regexp.MustCompile(`An error occurred attempting to retrieve secret`), response.Attachments[0].Text)
+				assert.NoError(t, mock.ExpectationsWereMet())
+			},
+		},
+		{
+			name: "db error",
+			setup: func() (*PublicController, url.Values, sqlmock.Sqlmock, *sql.DB) {
+				db, mock, err := sqlmock.New()
+				if err != nil {
+					log.Fatalf("error initializing sqlmock %v", err)
+				}
 
-// 	requestBody := url.Values{
-// 		"payload": []string{string(interactionBytes)},
-// 	}
-// 	w := postRequest(router, strings.NewReader(requestBody.Encode()), map[string]string{"Content-Type": "application/x-www-form-urlencoded"}, "POST", "/interactive")
-// 	assert.Equal(t, http.StatusOK, w.Code)
+				stmt := "SELECT id, created_at, expires_at, value FROM secrets WHERE id = \\$1"
+				mock.ExpectQuery(stmt).WithArgs(secretIDHashed).WillReturnError(fmt.Errorf("the db exploded"))
+				ctl := NewController(
+					db,
+					secretdb.NewSecretsRepository(db),
+				)
+				return ctl, requestBody, mock, db
+			},
+			verify: func(t *testing.T, r *httptest.ResponseRecorder, mock sqlmock.Sqlmock) {
+				var response slack.Message
+				b, _ := ioutil.ReadAll(r.Body)
+				json.Unmarshal(b, &response)
+				assert.Regexp(t, regexp.MustCompile(`An error occurred attempting to retrieve secret`), response.Attachments[0].Text)
+				assert.NoError(t, mock.ExpectationsWereMet())
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctl, requestBody, mock, db := tt.setup()
 
-// 	var response slack.Message
-// 	b, err := ioutil.ReadAll(w.Body)
-// 	err = json.Unmarshal(b, &response)
+			defer db.Close()
+			defer httpmock.DeactivateAndReset()
+			router := ctl.ConfigureRoutes(Config{SkipSignatureValidation: true})
+			recordedResponse := postRequest(router, strings.NewReader(requestBody.Encode()), map[string]string{"Content-Type": "application/x-www-form-urlencoded"}, "POST", "/interactive")
+			tt.verify(t, recordedResponse, mock)
+		})
+	}
+}
+func TestHandleInteractiveDeleteSecret(t *testing.T) {
+	secretID := "monkey"
+	interactionPayload := slack.InteractionCallback{
+		CallbackID: fmt.Sprintf("delete_secret:%v", secretID),
+	}
+	interactionBytes, err := json.Marshal(interactionPayload)
+	if err != nil {
+		assert.Fail(t, err.Error())
+	}
 
-// 	assert.Nil(t, err)
+	requestBody := url.Values{
+		"payload": []string{string(interactionBytes)},
+	}
 
-// 	if len(response.Attachments) < 1 {
-// 		assert.FailNow(t, "Expected at least 1 response.Attachments")
-// 	}
-// 	assert.Equal(t, "Secret message", response.Attachments[0].Title)
-// 	if len(response.Attachments[0].Actions) < 1 {
-// 		assert.FailNow(t, "Expected at least 1 response.Attachments[0].Actions")
-// 	}
-// 	assert.Equal(t, "this is my secret", response.Attachments[0].Text)
-// 	assert.Equal(t, ":x: Delete message", response.Attachments[0].Actions[0].Text)
+	tests := []struct {
+		name   string
+		setup  func() (*PublicController, url.Values, sqlmock.Sqlmock, *sql.DB)
+		verify func(*testing.T, *httptest.ResponseRecorder, sqlmock.Sqlmock)
+	}{
+		{
+			name: "happy path",
+			setup: func() (*PublicController, url.Values, sqlmock.Sqlmock, *sql.DB) {
+				db, mock, err := sqlmock.New()
+				if err != nil {
+					log.Fatalf("error initializing sqlmock %v", err)
+				}
 
-// }
-// func TestHandleInteractiveDeleteSecret(t *testing.T) {
-// 	s, err := miniredis.Run()
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	defer s.Close()
-// 	// Grab our router
-// 	config := Config{
-// 		RedisOptions: &redis.Options{
-// 			Addr: s.Addr(),
-// 		},
-// 		SigningSecret:           "secret",
-// 		SkipSignatureValidation: true,
-// 	}
-// 	router := SetupRouter(config)
+				ctl := NewController(
+					db,
+					secretdb.NewSecretsRepository(db),
+				)
+				return ctl, requestBody, mock, db
+			},
+			verify: func(t *testing.T, r *httptest.ResponseRecorder, mock sqlmock.Sqlmock) {
+				var response slack.Message
+				b, _ := ioutil.ReadAll(r.Body)
+				json.Unmarshal(b, &response)
+				assert.True(t, response.DeleteOriginal)
+				assert.NoError(t, mock.ExpectationsWereMet())
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctl, requestBody, mock, db := tt.setup()
 
-// 	secretID := shortuuid.New()
-// 	redisClient := secretredis.Client()
-// 	secretEncrypted, err := encrypt("this is my secret", secretID)
-// 	if err != nil {
-// 		assert.Fail(t, err.Error())
-// 	}
-// 	redisClient.Set(hash(secretID), secretEncrypted, 0)
-
-// 	interactionPayload := slack.InteractionCallback{
-// 		CallbackID: fmt.Sprintf("delete_secret:%v", secretID),
-// 	}
-
-// 	interactionBytes, err := json.Marshal(interactionPayload)
-// 	if err != nil {
-// 		assert.Fail(t, err.Error())
-// 	}
-
-// 	requestBody := url.Values{
-// 		"payload": []string{string(interactionBytes)},
-// 	}
-// 	w := postRequest(router, strings.NewReader(requestBody.Encode()), map[string]string{"Content-Type": "application/x-www-form-urlencoded"}, "POST", "/interactive")
-// 	assert.Equal(t, http.StatusOK, w.Code)
-
-// 	var response slack.Message
-// 	b, err := ioutil.ReadAll(w.Body)
-// 	err = json.Unmarshal(b, &response)
-// 	assert.Nil(t, err)
-// 	assert.Equal(t, true, response.DeleteOriginal)
-// }
+			defer db.Close()
+			defer httpmock.DeactivateAndReset()
+			router := ctl.ConfigureRoutes(Config{SkipSignatureValidation: true})
+			recordedResponse := postRequest(router, strings.NewReader(requestBody.Encode()), map[string]string{"Content-Type": "application/x-www-form-urlencoded"}, "POST", "/interactive")
+			tt.verify(t, recordedResponse, mock)
+		})
+	}
+}
