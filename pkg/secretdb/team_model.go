@@ -21,12 +21,12 @@ type teamRepository struct {
 }
 
 type TeamRepository interface {
-	Close()
+	// Close()
 	FindByID(httpContext context.Context, id string) (TeamModel, error)
-	Find(httpContext context.Context) ([]TeamModel, error)
+	// Find(httpContext context.Context) ([]TeamModel, error)
 	Create(httpContext context.Context, team *TeamModel) error
 	Update(httpContext context.Context, team *TeamModel) error
-	Delete(httpContext context.Context, id string) error
+	// Delete(httpContext context.Context, id string) error
 }
 
 // NewTeamsRepository will create a variable that represent the Repository struct
@@ -35,9 +35,9 @@ func NewTeamsRepository(db *sql.DB) TeamRepository {
 }
 
 // Close attaches the provider and close the connection
-func (r *teamRepository) Close() {
-	r.db.Close()
-}
+// func (r *teamRepository) Close() {
+// 	r.db.Close()
+// }
 
 // FindByID attaches the user repository and find data based on id
 func (r *teamRepository) FindByID(httpContext context.Context, id string) (TeamModel, error) {
@@ -60,38 +60,38 @@ func (r *teamRepository) FindByID(httpContext context.Context, id string) (TeamM
 }
 
 // Find attaches the user repository and find all data
-func (r *teamRepository) Find(httpContext context.Context) ([]TeamModel, error) {
-	//TODO IMPLEMENT APM CONTEXT ATTACHMENT
+// func (r *teamRepository) Find(httpContext context.Context) ([]TeamModel, error) {
+// 	//TODO IMPLEMENT APM CONTEXT ATTACHMENT
 
-	teams := []TeamModel{}
+// 	teams := []TeamModel{}
 
-	ctx, cancel := context.WithTimeout(httpContext, 5*time.Second)
-	defer cancel()
+// 	ctx, cancel := context.WithTimeout(httpContext, 5*time.Second)
+// 	defer cancel()
 
-	rows, err := r.db.QueryContext(ctx, "SELECT id, access_token, scope, name, paid FROM teams")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+// 	rows, err := r.db.QueryContext(ctx, "SELECT id, access_token, scope, name, paid FROM teams")
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	defer rows.Close()
 
-	for rows.Next() {
-		team := TeamModel{}
-		err = rows.Scan(
-			&team.ID,
-			&team.AccessToken,
-			&team.Scope,
-			&team.Name,
-			&team.Paid,
-		)
+// 	for rows.Next() {
+// 		team := TeamModel{}
+// 		err = rows.Scan(
+// 			&team.ID,
+// 			&team.AccessToken,
+// 			&team.Scope,
+// 			&team.Name,
+// 			&team.Paid,
+// 		)
 
-		if err != nil {
-			return nil, err
-		}
-		teams = append(teams, team)
-	}
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 		teams = append(teams, team)
+// 	}
 
-	return teams, nil
-}
+// 	return teams, nil
+// }
 
 // Create attaches the team repository and creating the data
 func (r *teamRepository) Create(httpContext context.Context, team *TeamModel) error {
@@ -140,17 +140,17 @@ func (r *teamRepository) Update(httpContext context.Context, team *TeamModel) er
 }
 
 // Delete attaches the team repository and delete data based on id
-func (r *teamRepository) Delete(httpContext context.Context, id string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+// func (r *teamRepository) Delete(httpContext context.Context, id string) error {
+// 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+// 	defer cancel()
 
-	query := "DELETE FROM teams WHERE id = $1"
-	stmt, err := r.db.PrepareContext(ctx, query)
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
+// 	query := "DELETE FROM teams WHERE id = $1"
+// 	stmt, err := r.db.PrepareContext(ctx, query)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	defer stmt.Close()
 
-	_, err = stmt.ExecContext(ctx, id)
-	return err
-}
+// 	_, err = stmt.ExecContext(ctx, id)
+// 	return err
+// }
