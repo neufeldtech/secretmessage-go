@@ -75,14 +75,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	controller := secretmessage.NewController(
-		db,
-		secretdb.NewSecretsRepository(db),
-		secretdb.NewTeamsRepository(db),
-	)
-
-	secretmessage.SetConfig(secretmessage.Config{
+	conf := secretmessage.Config{
 		Port:            resolvePort(),
 		RedisOptions:    redisOptions,
 		SlackToken:      "",
@@ -99,11 +92,18 @@ func main() {
 				TokenURL: "https://slack.com/api/oauth.v2.access",
 			},
 		},
-	},
+	}
+	controller := secretmessage.NewController(
+		db,
+		secretdb.NewSecretsRepository(db),
+		secretdb.NewTeamsRepository(db),
+		conf,
 	)
 
-	go secretmessage.StayAwake(secretmessage.GetConfig())
-	r := controller.ConfigureRoutes(secretmessage.GetConfig())
-	log.Infof("Booted and listening on port %v", secretmessage.GetConfig().Port)
-	r.Run(fmt.Sprintf("0.0.0.0:%v", secretmessage.GetConfig().Port)) // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
+	// secretmessage.SetConfig(secretmessage.Config{})
+
+	go secretmessage.StayAwake(conf)
+	r := controller.ConfigureRoutes()
+	log.Infof("Booted and listening on port %v", conf.Port)
+	r.Run(fmt.Sprintf("0.0.0.0:%v", conf.Port)) // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
 }

@@ -19,10 +19,3 @@ type Config struct {
 	AppURL                  string
 	OauthConfig             *oauth2.Config
 }
-
-func SetConfig(c Config) {
-	config = c
-}
-func GetConfig() Config {
-	return config
-}

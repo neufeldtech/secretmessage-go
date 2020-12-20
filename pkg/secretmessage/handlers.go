@@ -19,15 +19,17 @@ import (
 
 type PublicController struct {
 	db               *sql.DB
+	config           Config
 	secretRepository secretdb.SecretRepository
 	teamRepository   secretdb.TeamRepository
 }
 
-func NewController(db *sql.DB, secretRepository secretdb.SecretRepository, teamRepository secretdb.TeamRepository) *PublicController {
+func NewController(db *sql.DB, secretRepository secretdb.SecretRepository, teamRepository secretdb.TeamRepository, config Config) *PublicController {
 	return &PublicController{
 		db:               db,
 		secretRepository: secretRepository,
 		teamRepository:   teamRepository,
+		config:           config,
 	}
 }
 
@@ -53,7 +55,7 @@ func (ctl *PublicController) HandleSlash(c *gin.Context) {
 
 func (ctl *PublicController) HandleOauthBegin(c *gin.Context) {
 	state := shortuuid.New()
-	url := GetConfig().OauthConfig.AuthCodeURL(state, oauth2.AccessTypeOnline)
+	url := ctl.config.OauthConfig.AuthCodeURL(state, oauth2.AccessTypeOnline)
 
 	c.SetCookie("state", state, 0, "", "", false, true)
 	c.Redirect(302, url)
@@ -67,7 +69,6 @@ func (ctl *PublicController) HandleOauthCallback(c *gin.Context) {
 	tx.Context.SetLabel("action", "handleOauthCallback")
 
 	stateQuery := c.Query("state")
-	conf := GetConfig()
 	stateCookie, err := c.Cookie("state")
 	if err != nil {
 		log.Errorf("error retrieving state cookie from request: %v", err)
@@ -83,7 +84,7 @@ func (ctl *PublicController) HandleOauthCallback(c *gin.Context) {
 		tx.Context.SetLabel("errorCode", "state_cookie_invalid")
 		return
 	}
-	token, err := conf.OauthConfig.Exchange(context.Background(), c.Query("code"))
+	token, err := ctl.config.OauthConfig.Exchange(context.Background(), c.Query("code"))
 	if err != nil {
 		log.Errorf("error retrieving initial oauth token: %v", err)
 		apm.CaptureError(hc, err).Send()

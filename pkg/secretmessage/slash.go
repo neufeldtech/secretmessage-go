@@ -111,7 +111,7 @@ func SlashSecret(ctl *PublicController, c *gin.Context, tx *apm.Transaction, s s
 	c.Data(http.StatusOK, gin.MIMEPlain, nil)
 
 	if AppReinstallNeeded(ctl, c, tx, s) {
-		SendReinstallMessage(c, tx, s)
+		SendReinstallMessage(ctl, c, tx, s)
 	}
 
 	return
@@ -126,11 +126,11 @@ func AppReinstallNeeded(ctl *PublicController, c *gin.Context, tx *apm.Transacti
 	return false
 }
 
-func SendReinstallMessage(c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) {
+func SendReinstallMessage(ctl *PublicController, c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) {
 	responseEphemeral := slack.Message{
 		Msg: slack.Msg{
 			ResponseType: slack.ResponseTypeEphemeral,
-			Text:         fmt.Sprintf(":wave: Hey, we're working hard updating Secret Message. In order to keep using the app, <%v/auth/slack|please click here to reinstall>", config.AppURL),
+			Text:         fmt.Sprintf(":wave: Hey, we're working hard updating Secret Message. In order to keep using the app, <%v/auth/slack|please click here to reinstall>", ctl.config.AppURL),
 		},
 	}
 	sendMessageEphemeralErr := secretslack.SendResponseUrlMessage(c.Request.Context(), s.ResponseURL, responseEphemeral)

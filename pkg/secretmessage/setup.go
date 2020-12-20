@@ -10,8 +10,8 @@ import (
 	"go.elastic.co/apm/module/apmgin"
 )
 
-func callHealth() error {
-	resp, err := http.Get(config.AppURL + "/health")
+func callHealth(url string) error {
+	resp, err := http.Get(url + "/health")
 	if err != nil {
 		return err
 	}
@@ -26,14 +26,14 @@ func callHealth() error {
 func StayAwake(config Config) {
 	for {
 		time.Sleep(5 * time.Minute)
-		err := callHealth()
+		err := callHealth(config.AppURL)
 		if err != nil {
 			log.Error(err)
 		}
 	}
 }
 
-func (ctl *PublicController) ConfigureRoutes(config Config) *gin.Engine {
+func (ctl *PublicController) ConfigureRoutes() *gin.Engine {
 
 	r := gin.Default()
 	r.Use(apmgin.Middleware(r))
@@ -44,8 +44,8 @@ func (ctl *PublicController) ConfigureRoutes(config Config) *gin.Engine {
 	r.GET("/auth/slack/callback", ctl.HandleOauthCallback)
 
 	// Signature validation required
-	r.POST("/slash", ValidateSignature(config), ctl.HandleSlash)
-	r.POST("/interactive", ValidateSignature(config), ctl.HandleInteractive)
+	r.POST("/slash", ValidateSignature(ctl.config), ctl.HandleSlash)
+	r.POST("/interactive", ValidateSignature(ctl.config), ctl.HandleInteractive)
 
 	return r
 }

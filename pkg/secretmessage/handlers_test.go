@@ -110,6 +110,7 @@ func TestHandleSlashSecret(t *testing.T) {
 					db,
 					secretdb.NewSecretsRepository(db),
 					secretdb.NewTeamsRepository(db),
+					Config{SkipSignatureValidation: true},
 				)
 				return ctl, requestBody, mock, db
 			},
@@ -138,6 +139,7 @@ func TestHandleSlashSecret(t *testing.T) {
 					db,
 					secretdb.NewSecretsRepository(db),
 					secretdb.NewTeamsRepository(db),
+					Config{SkipSignatureValidation: true},
 				)
 				return ctl, requestBody, mock, db
 			},
@@ -166,6 +168,7 @@ func TestHandleSlashSecret(t *testing.T) {
 					db,
 					secretdb.NewSecretsRepository(db),
 					secretdb.NewTeamsRepository(db),
+					Config{SkipSignatureValidation: true},
 				)
 				return ctl, requestBody, mock, db
 			},
@@ -183,7 +186,7 @@ func TestHandleSlashSecret(t *testing.T) {
 			ctl, requestBody, mock, db := tt.setup()
 			defer db.Close()
 			defer httpmock.DeactivateAndReset()
-			router := ctl.ConfigureRoutes(Config{SkipSignatureValidation: true})
+			router := ctl.ConfigureRoutes()
 			recordedResponse := postRequest(router, strings.NewReader(requestBody.Encode()), map[string]string{"Content-Type": "application/x-www-form-urlencoded"}, "POST", "/slash")
 			tt.verify(t, recordedResponse, mock)
 		})
@@ -234,6 +237,7 @@ func TestHandleInteractiveGetSecret(t *testing.T) {
 					db,
 					secretdb.NewSecretsRepository(db),
 					secretdb.NewTeamsRepository(db),
+					Config{SkipSignatureValidation: true},
 				)
 				return ctl, requestBody, mock, db
 			},
@@ -260,6 +264,7 @@ func TestHandleInteractiveGetSecret(t *testing.T) {
 					db,
 					secretdb.NewSecretsRepository(db),
 					secretdb.NewTeamsRepository(db),
+					Config{SkipSignatureValidation: true},
 				)
 				return ctl, requestBody, mock, db
 			},
@@ -285,6 +290,7 @@ func TestHandleInteractiveGetSecret(t *testing.T) {
 					db,
 					secretdb.NewSecretsRepository(db),
 					secretdb.NewTeamsRepository(db),
+					Config{SkipSignatureValidation: true},
 				)
 				return ctl, requestBody, mock, db
 			},
@@ -303,7 +309,7 @@ func TestHandleInteractiveGetSecret(t *testing.T) {
 
 			defer db.Close()
 			defer httpmock.DeactivateAndReset()
-			router := ctl.ConfigureRoutes(Config{SkipSignatureValidation: true})
+			router := ctl.ConfigureRoutes()
 			recordedResponse := postRequest(router, strings.NewReader(requestBody.Encode()), map[string]string{"Content-Type": "application/x-www-form-urlencoded"}, "POST", "/interactive")
 			tt.verify(t, recordedResponse, mock)
 		})
@@ -340,6 +346,7 @@ func TestHandleInteractiveDeleteSecret(t *testing.T) {
 					db,
 					secretdb.NewSecretsRepository(db),
 					secretdb.NewTeamsRepository(db),
+					Config{SkipSignatureValidation: true},
 				)
 				return ctl, requestBody, mock, db
 			},
@@ -358,9 +365,65 @@ func TestHandleInteractiveDeleteSecret(t *testing.T) {
 
 			defer db.Close()
 			defer httpmock.DeactivateAndReset()
-			router := ctl.ConfigureRoutes(Config{SkipSignatureValidation: true})
+			router := ctl.ConfigureRoutes()
 			recordedResponse := postRequest(router, strings.NewReader(requestBody.Encode()), map[string]string{"Content-Type": "application/x-www-form-urlencoded"}, "POST", "/interactive")
 			tt.verify(t, recordedResponse, mock)
 		})
 	}
 }
+
+// func TestHandleOauthCallback(t *testing.T) {
+// 	callback := "/auth/slack/callback?state=abc&code=123"
+// 	exchangeEndpoint :=
+// 	tests := []struct {
+// 		name   string
+// 		setup  func() (*PublicController, url.Values, sqlmock.Sqlmock, *sql.DB)
+// 		verify func(*testing.T, *httptest.ResponseRecorder, sqlmock.Sqlmock)
+// 		// requestBody url.Values
+// 	}{
+// 		{
+// 			name: "happy path",
+// 			setup: func() (*PublicController, url.Values, sqlmock.Sqlmock, *sql.DB) {
+// 				httpmock.Activate()
+// 				httpmock.RegisterResponder("POST", responseURL, httpmock.NewStringResponder(200, `ok`))
+// 				db, mock, err := sqlmock.New()
+// 				if err != nil {
+// 					log.Fatalf("error initializing sqlmock %v", err)
+// 				}
+// 				stmt := "INSERT INTO secrets \\(id, created_at, expires_at, value\\) VALUES \\(\\$1, \\$2, \\$3, \\$4\\)"
+// 				mock.ExpectPrepare(stmt)
+// 				mock.ExpectExec(stmt).WithArgs(AnySecretID{}, AnyTime{}, AnyTime{}, AnySecretValue{}).WillReturnResult(sqlmock.NewResult(1, 1))
+
+// 				stmt = "SELECT id, access_token, scope, name, paid FROM teams WHERE id = \\$1"
+// 				mock.ExpectQuery(stmt).WithArgs(teamID).WillReturnError(fmt.Errorf("no rows fam"))
+
+// 				ctl := NewController(
+// 					db,
+// 					secretdb.NewSecretsRepository(db),
+// 					secretdb.NewTeamsRepository(db),
+// 					Config{SkipSignatureValidation: true},
+// 				)
+// 				return ctl, requestBody, mock, db
+// 			},
+// 			verify: func(t *testing.T, r *httptest.ResponseRecorder, mock sqlmock.Sqlmock) {
+// 				assert.Equal(t, http.StatusOK, r.Code)
+// 				b, err := ioutil.ReadAll(r.Body)
+// 				assert.NoError(t, err)
+// 				assert.Len(t, b, 0)
+// 				assert.NoError(t, mock.ExpectationsWereMet())
+// 			},
+// 		},
+
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			ctl, requestBody, mock, db := tt.setup()
+// 			defer db.Close()
+// 			defer httpmock.DeactivateAndReset()
+// 			router := ctl.ConfigureRoutes(Config{SkipSignatureValidation: true})
+// 			recordedResponse := postRequest(router, strings.NewReader(requestBody.Encode()), map[string]string{"Content-Type": "application/x-www-form-urlencoded"}, "POST", "/slash")
+// 			tt.verify(t, recordedResponse, mock)
+// 		})
+// 	}
+
+// }
