@@ -18,4 +18,5 @@ type Config struct {
 	LegacyCryptoKey         string
 	AppURL                  string
 	OauthConfig             *oauth2.Config
+	DatabaseURL             string
 }

@@ -9,27 +9,23 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/lithammer/shortuuid"
-	"github.com/neufeldtech/secretmessage-go/pkg/secretdb"
 	"github.com/prometheus/common/log"
 	"github.com/slack-go/slack"
 	"go.elastic.co/apm"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
+	"gorm.io/gorm"
 )
 
 type PublicController struct {
-	db               *sql.DB
-	config           Config
-	secretRepository secretdb.SecretRepository
-	teamRepository   secretdb.TeamRepository
+	db     *gorm.DB
+	config Config
 }
 
-func NewController(db *sql.DB, secretRepository secretdb.SecretRepository, teamRepository secretdb.TeamRepository, config Config) *PublicController {
+func NewController(config Config, db *gorm.DB) *PublicController {
 	return &PublicController{
-		db:               db,
-		secretRepository: secretRepository,
-		teamRepository:   teamRepository,
-		config:           config,
+		db:     db,
+		config: config,
 	}
 }
 
@@ -93,7 +89,7 @@ func (ctl *PublicController) HandleOauthCallback(c *gin.Context) {
 		return
 	}
 
-	team, ok := token.Extra("team").(map[string]interface{})
+	teamMap, ok := token.Extra("team").(map[string]interface{})
 	if !ok {
 		log.Errorf("error unmarshalling team from token: %v", token)
 		apm.CaptureError(hc, fmt.Errorf("could not unmarshal team from token: %v", token)).Send()
@@ -102,7 +98,7 @@ func (ctl *PublicController) HandleOauthCallback(c *gin.Context) {
 		return
 	}
 
-	teamID, ok := team["id"].(string)
+	teamID, ok := teamMap["id"].(string)
 	if !ok {
 		log.Errorf("error unmarshalling teamID from token: %v", token)
 		c.Redirect(302, "https://secretmessage.xyz/error")
@@ -110,7 +106,7 @@ func (ctl *PublicController) HandleOauthCallback(c *gin.Context) {
 		return
 	}
 
-	teamName, ok := team["name"].(string)
+	teamName, ok := teamMap["name"].(string)
 	if !ok {
 		log.Errorf("error unmarshalling teamName from token: %v", token)
 		c.Redirect(302, "https://secretmessage.xyz/error")
@@ -126,39 +122,19 @@ func (ctl *PublicController) HandleOauthCallback(c *gin.Context) {
 		return
 	}
 
-	teamRecord, err := ctl.teamRepository.FindByID(c, teamID)
-	switch err {
-	case nil:
-		// Team already exists in db
-		teamRecord.Name = teamName // Update name in case it changed
-		teamRecord.AccessToken = token.AccessToken
-		teamRecord.Scope = scope
+	var team Team
+	updateTeamErr := ctl.db.
+		Where(&team, Team{ID: teamID}).
+		// Attrs() is for setting fields on new records
+		Attrs(Team{Paid: sql.NullBool{Bool: false, Valid: true}}).
+		// Assign() is for updating fields on all records
+		Assign(Team{AccessToken: token.AccessToken, Scope: scope, Name: teamName}).
+		FirstOrCreate(&team).Error
 
-		err = ctl.teamRepository.Update(c, &teamRecord)
-		if err != nil {
-			log.Errorf("error updating team in db: %v", err)
-			c.Redirect(302, "https://secretmessage.xyz/error")
-			tx.Context.SetLabel("errorCode", "team_update_error")
-			return
-		}
-	case sql.ErrNoRows:
-		// No team in DB yet
-		teamRecord.ID = teamID
-		teamRecord.Name = teamName
-		teamRecord.AccessToken = token.AccessToken
-		teamRecord.Scope = scope
-		teamRecord.Paid = false
-		err = ctl.teamRepository.Create(c, &teamRecord)
-		if err != nil {
-			log.Errorf("error creating team in db: %v", err)
-			c.Redirect(302, "https://secretmessage.xyz/error")
-			tx.Context.SetLabel("errorCode", "team_create_error")
-			return
-		}
-	default:
-		log.Errorf("error checking db for existing team: %v", err)
+	if updateTeamErr != nil {
+		log.Errorf("error updating team in db: %v", err)
 		c.Redirect(302, "https://secretmessage.xyz/error")
-		tx.Context.SetLabel("errorCode", "team_get_error")
+		tx.Context.SetLabel("errorCode", "team_update_error")
 		return
 	}
 
@@ -166,12 +142,12 @@ func (ctl *PublicController) HandleOauthCallback(c *gin.Context) {
 }
 
 func (ctl *PublicController) HandleHealth(c *gin.Context) {
-	err := ctl.db.Ping()
-	if err != nil {
-		log.Error(err)
-		c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"status": "DOWN"})
-		return
-	}
+	// err := ctl.db.Ping()
+	// if err != nil {
+	// 	log.Error(err)
+	// 	c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"status": "DOWN"})
+	// 	return
+	// }
 	c.JSON(http.StatusOK, gin.H{"status": "UP"})
 }
 

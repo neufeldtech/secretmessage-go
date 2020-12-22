@@ -10,12 +10,13 @@ import (
 	"os"
 
 	"github.com/go-redis/redis"
-	"github.com/neufeldtech/secretmessage-go/pkg/secretdb"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretmessage"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretslack"
 	"github.com/prometheus/common/log"
 	"go.elastic.co/apm/module/apmhttp"
 	"golang.org/x/oauth2"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 var (
@@ -26,6 +27,17 @@ var (
 	slackCallbackURLConfigKey         = "slackCallbackURL"
 	legacyCryptoKeyConfigKey          = "legacyCryptoKey"
 	appURLConfigKey                   = "appURL"
+	databaseURL                       = "databaseURL"
+
+	configMap = map[string]string{
+		slackSigningSecretConfigKey: os.Getenv("SLACK_SIGNING_SECRET"),
+		slackClientIDConfigKey:      os.Getenv("SLACK_CLIENT_ID"),
+		slackClientSecretConfigKey:  os.Getenv("SLACK_CLIENT_SECRET"),
+		slackCallbackURLConfigKey:   os.Getenv("SLACK_CALLBACK_URL"),
+		legacyCryptoKeyConfigKey:    os.Getenv("CRYPTO_KEY"),
+		appURLConfigKey:             os.Getenv("APP_URL"),
+		databaseURL:                 os.Getenv("DATABASE_URL"),
+	}
 )
 
 func resolvePort() int64 {
@@ -48,14 +60,6 @@ func main() {
 			Timeout: time.Second * 5,
 		},
 	))
-	configMap := map[string]string{
-		slackSigningSecretConfigKey: os.Getenv("SLACK_SIGNING_SECRET"),
-		slackClientIDConfigKey:      os.Getenv("SLACK_CLIENT_ID"),
-		slackClientSecretConfigKey:  os.Getenv("SLACK_CLIENT_SECRET"),
-		slackCallbackURLConfigKey:   os.Getenv("SLACK_CALLBACK_URL"),
-		legacyCryptoKeyConfigKey:    os.Getenv("CRYPTO_KEY"),
-		appURLConfigKey:             os.Getenv("APP_URL"),
-	}
 	for k, v := range configMap {
 		if v == "" {
 			log.Fatalf("error initializaing config. key %v was not set", k)
@@ -66,15 +70,6 @@ func main() {
 		log.Fatalf("error parsing REDIS_URL: %v", err)
 	}
 
-	db, err := secretdb.Connect(os.Getenv("DATABASE_URL"))
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Info("running db migrations")
-	err = secretdb.RunMigrations(db)
-	if err != nil {
-		log.Fatal(err)
-	}
 	conf := secretmessage.Config{
 		Port:            resolvePort(),
 		RedisOptions:    redisOptions,
@@ -82,6 +77,7 @@ func main() {
 		SigningSecret:   configMap[slackSigningSecretConfigKey],
 		AppURL:          configMap[appURLConfigKey],
 		LegacyCryptoKey: configMap[legacyCryptoKeyConfigKey],
+		DatabaseURL:     configMap[databaseURL],
 		OauthConfig: &oauth2.Config{
 			ClientID:     configMap[slackClientIDConfigKey],
 			ClientSecret: configMap[slackClientSecretConfigKey],
@@ -93,11 +89,23 @@ func main() {
 			},
 		},
 	}
+
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		DSN: conf.DatabaseURL,
+	}), &gorm.Config{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	d, _ := db.DB()
+	d.SetMaxIdleConns(10)
+	d.SetMaxOpenConns(10)
+
+	db.AutoMigrate(secretmessage.Secret{})
+	db.AutoMigrate(secretmessage.Team{})
+
 	controller := secretmessage.NewController(
-		db,
-		secretdb.NewSecretsRepository(db),
-		secretdb.NewTeamsRepository(db),
 		conf,
+		db,
 	)
 
 	// secretmessage.SetConfig(secretmessage.Config{})

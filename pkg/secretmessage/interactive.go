@@ -23,8 +23,8 @@ func CallbackSendSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Conte
 
 	// Fetch secret
 
-	secretEncrypted, getSecretErr := ctl.secretRepository.FindByID(hc, hash(secretID))
-	if getSecretErr != nil {
+	var secret Secret
+	if getSecretErr := ctl.db.WithContext(hc).Where("id = ?", hash(secretID)).First(&secret).Error; getSecretErr != nil {
 		tx.Context.SetLabel("errorCode", "redis_get_error")
 		log.Errorf("error retrieving secret from store: %v", getSecretErr)
 		res, code := secretslack.NewSlackErrorResponse(
@@ -38,10 +38,10 @@ func CallbackSendSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Conte
 	// Decrypt the secret
 	var secretDecrypted string
 	var decryptionErr error
-	if strings.Contains(secretEncrypted.Value, ":") {
-		secretDecrypted, decryptionErr = decryptIV(secretEncrypted.Value, config.LegacyCryptoKey)
+	if strings.Contains(secret.Value, ":") {
+		secretDecrypted, decryptionErr = decryptIV(secret.Value, config.LegacyCryptoKey)
 	} else {
-		secretDecrypted, decryptionErr = decrypt(secretEncrypted.Value, secretID)
+		secretDecrypted, decryptionErr = decrypt(secret.Value, secretID)
 	}
 	if decryptionErr != nil {
 		log.Errorf("error decrypting secretID %v: %v", secretID, decryptionErr)
@@ -87,9 +87,8 @@ func CallbackSendSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Conte
 	}
 	c.Data(http.StatusOK, gin.MIMEJSON, responseBytes)
 
-	err = ctl.secretRepository.Delete(hc, hash(secretID))
-	if err != nil {
-		log.Error(err)
+	if delSecretErr := ctl.db.WithContext(hc).Unscoped().Where("id = ?", hash(secretID)).Delete(Secret{}).Error; delSecretErr != nil {
+		log.Error(delSecretErr)
 	}
 	return
 }

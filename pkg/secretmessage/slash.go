@@ -7,7 +7,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/lithammer/shortuuid"
-	"github.com/neufeldtech/secretmessage-go/pkg/secretdb"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretslack"
 	"github.com/prometheus/common/log"
 	"github.com/slack-go/slack"
@@ -24,22 +23,23 @@ func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, tx *apm
 
 	if encryptErr != nil {
 		tx.Context.SetLabel("errorCode", "encrypt_error")
-		log.Errorf("error storing secretID %v in redis: %v", secretID, encryptErr)
+		log.Errorf("error storing secretID %v: %v", secretID, encryptErr)
 		return encryptErr
 	}
 
 	// Store the secret
 	secretStoreTime := time.Now()
-	secret := secretdb.SecretModel{
-		ID:        hash(secretID),
-		CreatedAt: secretStoreTime,
-		ExpiresAt: secretStoreTime.Add(time.Hour * 24 * 7),
-		Value:     secretEncrypted,
-	}
-	storeErr := ctl.secretRepository.Create(hc, &secret)
+	storeErr := ctl.db.WithContext(hc).Create(
+		&Secret{
+			ID:        hash(secretID),
+			ExpiresAt: secretStoreTime.Add(time.Hour * 24 * 7),
+			Value:     secretEncrypted,
+		},
+	).Error
+
 	if storeErr != nil {
 		tx.Context.SetLabel("errorCode", "redis_set_error")
-		log.Errorf("error storing secretID %v in redis: %v", secretID, storeErr)
+		log.Errorf("error storing secretID %v: %v", secretID, storeErr)
 		return storeErr
 	}
 
@@ -118,7 +118,8 @@ func SlashSecret(ctl *PublicController, c *gin.Context, tx *apm.Transaction, s s
 }
 
 func AppReinstallNeeded(ctl *PublicController, c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) bool {
-	team, err := ctl.teamRepository.FindByID(c, s.TeamID)
+	var team Team
+	err := ctl.db.WithContext(c).Where("id = ?", s.TeamID).First(&team).Error
 	if err != nil || team.AccessToken == "" {
 		log.Warnf("%v: could not find access_token for team %v in store", err, s.TeamID)
 		return true
