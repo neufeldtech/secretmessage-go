@@ -68,7 +68,7 @@ var _ = Describe("/interactive", func() {
 		JustBeforeEach(func() {
 			// creation of objects
 			router = ctl.ConfigureRoutes()
-			serverResponse = postRequest(router, strings.NewReader(requestBody.Encode()), map[string]string{"Content-Type": "application/x-www-form-urlencoded"}, "POST", "/interactive")
+			serverResponse = doHttpRequest(router, strings.NewReader(requestBody.Encode()), map[string]string{"Content-Type": "application/x-www-form-urlencoded"}, "POST", "/interactive")
 		})
 		AfterEach(func() {
 			Expect(mock.ExpectationsWereMet()).To(BeNil())
@@ -160,7 +160,7 @@ var _ = Describe("/interactive", func() {
 		JustBeforeEach(func() {
 			// creation of objects
 			router = ctl.ConfigureRoutes()
-			serverResponse = postRequest(router, strings.NewReader(requestBody.Encode()), map[string]string{"Content-Type": "application/x-www-form-urlencoded"}, "POST", "/interactive")
+			serverResponse = doHttpRequest(router, strings.NewReader(requestBody.Encode()), map[string]string{"Content-Type": "application/x-www-form-urlencoded"}, "POST", "/interactive")
 		})
 		AfterEach(func() {
 			Expect(mock.ExpectationsWereMet()).To(BeNil())
