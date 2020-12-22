@@ -26,21 +26,7 @@ import (
 var _ = Describe("/secret", func() {
 	responseURL := "https://fake-webhooks.fakeslack.com/response_url_1"
 	teamID := "T1234ABCD"
-	requestBody := url.Values{
-		"command":         []string{"/secret"},
-		"team_domain":     []string{"myteam"},
-		"enterprise_id":   []string{"E0001"},
-		"enterprise_name": []string{"Globular%20Construct%20Inc"},
-		"channel_id":      []string{"C1234ABCD"},
-		"text":            []string{"this is my secret"},
-		"team_id":         []string{teamID},
-		"user_id":         []string{"U1234ABCD"},
-		"user_name":       []string{"imafish"},
-		"response_url":    []string{responseURL},
-		"token":           []string{"xoxb-1234"},
-		"channel_name":    []string{"fishbowl"},
-		"trigger_id":      []string{"0000000000.1111111111.222222222222aaaaaaaaaaaaaa"},
-	}
+	var requestBody = url.Values{}
 	// secretID := "monkey"
 	secretIDHashed := "000c285457fc971f862a79b786476c78812c8897063c6fa9c045f579a3b2d63f"
 	encryptedPayload := "30303030303030303030303029c9922a9be75ba2e6be5afd32d19387baea51fa577c0c51dc9809a54adb9085490f109237d15a3262a585"
@@ -54,6 +40,21 @@ var _ = Describe("/secret", func() {
 	var serverResponse *httptest.ResponseRecorder
 
 	BeforeEach(func() {
+		requestBody = url.Values{
+			"command":         []string{"/secret"},
+			"team_domain":     []string{"myteam"},
+			"enterprise_id":   []string{"E0001"},
+			"enterprise_name": []string{"Globular%20Construct%20Inc"},
+			"channel_id":      []string{"C1234ABCD"},
+			"text":            []string{"this is my secret"},
+			"team_id":         []string{teamID},
+			"user_id":         []string{"U1234ABCD"},
+			"user_name":       []string{"imafish"},
+			"response_url":    []string{responseURL},
+			"token":           []string{"xoxb-1234"},
+			"channel_name":    []string{"fishbowl"},
+			"trigger_id":      []string{"0000000000.1111111111.222222222222aaaaaaaaaaaaaa"},
+		}
 		// Configuration
 		httpmock.Activate()
 		db, mock, err = sqlmock.New()
@@ -142,11 +143,43 @@ var _ = Describe("/secret", func() {
 			Expect(serverResponse.Code).To(Equal(http.StatusOK))
 		})
 	})
+
+	Context("on empty text given", func() {
+		BeforeEach(func() {
+			requestBody = url.Values{
+				"command":         []string{"/secret"},
+				"team_domain":     []string{"myteam"},
+				"enterprise_id":   []string{"E0001"},
+				"enterprise_name": []string{"Globular%20Construct%20Inc"},
+				"channel_id":      []string{"C1234ABCD"},
+				"text":            []string{""},
+				"team_id":         []string{teamID},
+				"user_id":         []string{"U1234ABCD"},
+				"user_name":       []string{"imafish"},
+				"response_url":    []string{responseURL},
+				"token":           []string{"xoxb-1234"},
+				"channel_name":    []string{"fishbowl"},
+				"trigger_id":      []string{"0000000000.1111111111.222222222222aaaaaaaaaaaaaa"},
+			}
+			// httpmock.RegisterResponder("POST", responseURL, httpmock.NewStringResponder(200, `ok`))
+			// stmt := `INSERT INTO "secrets" \("id","created_at","updated_at","deleted_at","expires_at","value"\) VALUES \(\$1,\$2,\$3,\$4,\$5,\$6\)`
+			// mock.ExpectExec(stmt).WithArgs(AnySecretID{}, AnyTime{}, AnyTime{}, nil, AnyTime{}, AnySecretValue{}).WillReturnError(fmt.Errorf("this is a db error"))
+		})
+		It("should return a useful error message", func() {
+			var msg slack.Message
+			b, _ := ioutil.ReadAll(serverResponse.Body)
+			json.Unmarshal(b, &msg)
+			Expect(msg.Attachments[0].Text).To(MatchRegexp(`It looks like you tried to send a secret but forgot to provide the secret's text`))
+		})
+		It("should respond with 200", func() {
+			Expect(serverResponse.Code).To(Equal(http.StatusOK))
+		})
+	})
 	Context("on error sending responseURL POST msg to slack", func() {
 		BeforeEach(func() {
 			httpmock.RegisterResponder("POST", responseURL, httpmock.NewStringResponder(503, `ok`))
 			stmt := `INSERT INTO "secrets" \("id","created_at","updated_at","deleted_at","expires_at","value"\) VALUES \(\$1,\$2,\$3,\$4,\$5,\$6\)`
-			mock.ExpectExec(stmt).WithArgs(AnySecretID{}, AnyTime{}, AnyTime{}, nil, AnyTime{}, AnySecretValue{}).WillReturnError(fmt.Errorf("this is a db error"))
+			mock.ExpectExec(stmt).WithArgs(AnySecretID{}, AnyTime{}, AnyTime{}, nil, AnyTime{}, AnySecretValue{}).WillReturnResult(sqlmock.NewResult(1, 1))
 		})
 		It("should return a useful error message", func() {
 			var msg slack.Message
