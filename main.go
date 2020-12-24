@@ -65,14 +65,9 @@ func main() {
 			log.Fatalf("error initializaing config. key %v was not set", k)
 		}
 	}
-	redisOptions, err := redis.ParseURL(os.Getenv("REDIS_URL"))
-	if err != nil {
-		log.Fatalf("error parsing REDIS_URL: %v", err)
-	}
 
 	conf := secretmessage.Config{
 		Port:            resolvePort(),
-		RedisOptions:    redisOptions,
 		SlackToken:      "",
 		SigningSecret:   configMap[slackSigningSecretConfigKey],
 		AppURL:          configMap[appURLConfigKey],
@@ -102,6 +97,13 @@ func main() {
 
 	db.AutoMigrate(secretmessage.Secret{})
 	db.AutoMigrate(secretmessage.Team{})
+
+	redisOptions, err := redis.ParseURL(os.Getenv("REDIS_URL"))
+	if err != nil {
+		log.Fatalf("error parsing REDIS_URL: %v", err)
+	}
+	rc := redis.NewClient(redisOptions)
+	secretmessage.MigrateSecretsToPostgres(rc, db)
 
 	controller := secretmessage.NewController(
 		conf,
