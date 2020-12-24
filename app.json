@@ -14,20 +14,25 @@
       "required": false,
       "description": "GIN release mode"
     },
-    "REDIS_URL": {
-      "required": true
+    "DATABASE_URL": {
+      "required": true,
+      "description": "Database connection uri"
     },
     "SLACK_CALLBACK_URL": {
-      "required": true
+      "required": true,
+      "description": "OAuth redirect URI"
     },
     "SLACK_CLIENT_ID": {
-      "required": true
+      "required": true,
+      "description": "OAuth client ID"
     },
     "SLACK_CLIENT_SECRET": {
-      "required": true
+      "required": true,
+      "description": "OAuth client secret"
     },
     "SLACK_SIGNING_SECRET": {
-      "required": true
+      "required": true,
+      "description": "Slack signing secret"
     }
   },
   "formation": {
@@ -36,7 +41,7 @@
     }
   },
   "addons": [
-    "heroku-redis"
+    "heroku-postgresql"
   ],
   "buildpacks": [
     {

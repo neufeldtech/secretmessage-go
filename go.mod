@@ -8,7 +8,6 @@ require (
 	github.com/elastic/go-sysinfo v1.4.0 // indirect
 	github.com/elastic/go-windows v1.0.1 // indirect
 	github.com/gin-gonic/gin v1.5.0
-	github.com/go-redis/redis v6.15.7+incompatible
 	github.com/golang/protobuf v1.4.3 // indirect
 	github.com/google/go-cmp v0.5.1 // indirect
 	github.com/google/uuid v1.1.2 // indirect
@@ -28,7 +27,6 @@ require (
 	github.com/stretchr/testify v1.6.1 // indirect
 	go.elastic.co/apm v1.9.0
 	go.elastic.co/apm/module/apmgin v1.9.0
-	go.elastic.co/apm/module/apmgoredis v1.9.0
 	go.elastic.co/apm/module/apmgormv2 v1.9.0
 	go.elastic.co/apm/module/apmhttp v1.9.0
 	golang.org/x/crypto v0.0.0-20201217014255-9d1352758620 // indirect
