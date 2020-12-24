@@ -38,7 +38,7 @@ func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, tx *apm
 	).Error
 
 	if storeErr != nil {
-		tx.Context.SetLabel("errorCode", "redis_set_error")
+		tx.Context.SetLabel("errorCode", "db_store_error")
 		log.Errorf("error storing secretID %v: %v", secretID, storeErr)
 		return storeErr
 	}

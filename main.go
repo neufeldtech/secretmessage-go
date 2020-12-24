@@ -9,7 +9,6 @@ import (
 
 	"os"
 
-	"github.com/go-redis/redis"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretmessage"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretslack"
 	"github.com/prometheus/common/log"
@@ -97,17 +96,6 @@ func main() {
 
 	db.AutoMigrate(secretmessage.Secret{})
 	db.AutoMigrate(secretmessage.Team{})
-
-	redisOptions, err := redis.ParseURL(os.Getenv("REDIS_URL"))
-	if err != nil {
-		log.Fatalf("error parsing REDIS_URL: %v", err)
-	}
-	rc := redis.NewClient(redisOptions)
-	err = secretmessage.MigrateSecretsToPostgres(rc, db)
-	if err != nil {
-		log.Fatalf("fatal error encountered during migration: %v", err)
-		os.Exit(1)
-	}
 
 	controller := secretmessage.NewController(
 		conf,
