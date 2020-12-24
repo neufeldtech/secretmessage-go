@@ -28,6 +28,7 @@ require (
 	github.com/stretchr/testify v1.6.1 // indirect
 	go.elastic.co/apm v1.9.0
 	go.elastic.co/apm/module/apmgin v1.8.0
+	go.elastic.co/apm/module/apmgoredis v1.9.0
 	go.elastic.co/apm/module/apmgormv2 v1.9.0
 	go.elastic.co/apm/module/apmhttp v1.8.0
 	golang.org/x/crypto v0.0.0-20201217014255-9d1352758620 // indirect

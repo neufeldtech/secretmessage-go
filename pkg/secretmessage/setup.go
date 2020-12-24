@@ -1,6 +1,7 @@
 package secretmessage
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -9,6 +10,8 @@ import (
 
 	"github.com/go-redis/redis"
 	"github.com/prometheus/common/log"
+	"go.elastic.co/apm"
+	"go.elastic.co/apm/module/apmgoredis"
 	"gorm.io/gorm"
 )
 
@@ -36,6 +39,12 @@ func StayAwake(config Config) {
 }
 
 func MigrateSecretsToPostgres(redis *redis.Client, db *gorm.DB) error {
+	c := context.Background()
+	tx := apm.DefaultTracer.StartTransaction("Migrate", "background_job")
+	defer tx.End()
+	ctx := apm.ContextWithTransaction(c, tx)
+	rc := apmgoredis.Wrap(redis)
+
 	var teamKeys []string
 	var secretKeys []string
 	var teamsMigrated int
@@ -44,12 +53,12 @@ func MigrateSecretsToPostgres(redis *redis.Client, db *gorm.DB) error {
 	log.Info("Attempting to migrate...")
 
 	d, _ := db.DB()
-	err := d.Ping()
+	err := d.PingContext(ctx)
 	if err != nil {
 		return fmt.Errorf("error pinging db %v", err)
 	}
 
-	keys, err := redis.Keys("*").Result()
+	keys, err := rc.WithContext(ctx).Keys("*").Result()
 	if err != nil {
 		return fmt.Errorf("error getting keys from redis %v", keys)
 	}
@@ -69,17 +78,21 @@ func MigrateSecretsToPostgres(redis *redis.Client, db *gorm.DB) error {
 	}
 
 	for _, teamID := range teamKeys {
-		team, err := redis.HMGet(teamID, "name", "access_token", "scope").Result()
+		team, err := rc.WithContext(ctx).HMGet(teamID, "name", "access_token", "scope").Result()
 		if err != nil {
 			log.Errorf("error getting key %v from redis %v\n", teamID, err)
 			continue
 		}
-		err = db.Create(
+		teamName := team[0].(string)
+		accessToken := team[1].(string)
+		scope := team[2].(string)
+
+		err = db.WithContext(ctx).Create(
 			&Team{
 				ID:          teamID,
-				Name:        team[0].(string),
-				AccessToken: team[1].(string),
-				Scope:       team[2].(string),
+				Name:        teamName,
+				AccessToken: accessToken,
+				Scope:       scope,
 			},
 		).Error
 		if err != nil {
@@ -90,12 +103,12 @@ func MigrateSecretsToPostgres(redis *redis.Client, db *gorm.DB) error {
 	}
 
 	for _, secretID := range secretKeys {
-		secretValue, err := redis.Get(secretID).Result()
+		secretValue, err := rc.WithContext(ctx).Get(secretID).Result()
 		if err != nil {
 			log.Errorf("error getting key %v from redis %v\n", secretID, err)
 			continue
 		}
-		err = db.Create(
+		err = db.WithContext(ctx).Create(
 			&Secret{
 				ID:        secretID,
 				ExpiresAt: time.Now().Add(time.Hour * 300),
