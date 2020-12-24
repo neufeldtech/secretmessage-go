@@ -13,7 +13,7 @@ import (
 	"go.elastic.co/apm"
 )
 
-// PrepareAndSendSecretEnvelope encrypts the secret, stores in redis, and sends the 'envelope' back to slack
+// PrepareAndSendSecretEnvelope encrypts the secret, stores in db, and sends the 'envelope' back to slack
 func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) error {
 	hc := c.Request.Context()
 

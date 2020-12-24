@@ -13,9 +13,11 @@ import (
 	"github.com/neufeldtech/secretmessage-go/pkg/secretmessage"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretslack"
 	"github.com/prometheus/common/log"
+
+	postgres "go.elastic.co/apm/module/apmgormv2/driver/postgres"
+
 	"go.elastic.co/apm/module/apmhttp"
 	"golang.org/x/oauth2"
-	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -85,9 +87,7 @@ func main() {
 		},
 	}
 
-	db, err := gorm.Open(postgres.New(postgres.Config{
-		DSN: conf.DatabaseURL,
-	}), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(conf.DatabaseURL), &gorm.Config{})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -103,17 +103,19 @@ func main() {
 		log.Fatalf("error parsing REDIS_URL: %v", err)
 	}
 	rc := redis.NewClient(redisOptions)
-	secretmessage.MigrateSecretsToPostgres(rc, db)
+	err = secretmessage.MigrateSecretsToPostgres(rc, db)
+	if err != nil {
+		log.Fatalf("fatal error encountered during migration: %v", err)
+		os.Exit(1)
+	}
 
 	controller := secretmessage.NewController(
 		conf,
 		db,
 	)
 
-	// secretmessage.SetConfig(secretmessage.Config{})
-
 	go secretmessage.StayAwake(conf)
 	r := controller.ConfigureRoutes()
 	log.Infof("Booted and listening on port %v", conf.Port)
-	r.Run(fmt.Sprintf("0.0.0.0:%v", conf.Port)) // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
+	r.Run(fmt.Sprintf("0.0.0.0:%v", conf.Port))
 }

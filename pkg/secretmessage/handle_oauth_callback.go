@@ -81,6 +81,7 @@ func (ctl *PublicController) HandleOauthCallback(c *gin.Context) {
 
 	var team Team
 	updateTeamErr := ctl.db.
+		WithContext(hc).
 		Where(&team, Team{ID: teamID}).
 		// Attrs() is for setting fields on new records
 		Attrs(Team{Paid: sql.NullBool{Bool: false, Valid: true}}).
