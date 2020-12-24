@@ -87,6 +87,7 @@ func SlashSecret(ctl *PublicController, c *gin.Context, tx *apm.Transaction, s s
 		res, code := secretslack.NewSlackErrorResponse(
 			"Error: secret text is empty",
 			"It looks like you tried to send a secret but forgot to provide the secret's text. You can send a secret like this: `/secret I am scared of heights`",
+			false,
 			"secret_text_empty")
 		tx.Context.SetLabel("errorCode", "text_empty")
 		c.Data(code, gin.MIMEJSON, res)
@@ -100,6 +101,7 @@ func SlashSecret(ctl *PublicController, c *gin.Context, tx *apm.Transaction, s s
 		res, code := secretslack.NewSlackErrorResponse(
 			":x: Sorry, an error occurred",
 			"An error occurred attempting to create secret",
+			false,
 			"prepare_and_send_error")
 		tx.Context.SetLabel("errorCode", "send_secret_payload_error")
 		c.Data(code, gin.MIMEJSON, res)

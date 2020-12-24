@@ -11,6 +11,7 @@ import (
 	"github.com/prometheus/common/log"
 	"github.com/slack-go/slack"
 	"go.elastic.co/apm"
+	"gorm.io/gorm"
 )
 
 func CallbackSendSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Context, i slack.InteractionCallback) {
@@ -24,13 +25,32 @@ func CallbackSendSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Conte
 	// Fetch secret
 
 	var secret Secret
-	if getSecretErr := ctl.db.WithContext(hc).Where("id = ?", hash(secretID)).First(&secret).Error; getSecretErr != nil {
-		tx.Context.SetLabel("errorCode", "redis_get_error")
+	getSecretErr := ctl.db.WithContext(hc).Where("id = ?", hash(secretID)).First(&secret).Error
+	var errTitle string
+	var errMsg string
+	var errCallback string
+	var deleteOriginal bool
+	switch {
+	case getSecretErr == gorm.ErrRecordNotFound:
+		tx.Context.SetLabel("errorCode", "secret_not_found")
+		errTitle = ":question: Secret not found"
+		errMsg = "This Secret has already been retrieved or has expired"
+		errCallback = "secret_not_found"
+		deleteOriginal = true
+	case getSecretErr != nil:
+		tx.Context.SetLabel("errorCode", "secret_get_error")
+		errTitle = ":x: Sorry, an error occurred"
+		errMsg = "An error occurred attempting to retrieve secret"
+		errCallback = "secret_get_error"
+		deleteOriginal = false
+	}
+	if getSecretErr != nil {
 		log.Errorf("error retrieving secret from store: %v", getSecretErr)
 		res, code := secretslack.NewSlackErrorResponse(
-			":x: Sorry, an error occurred",
-			"An error occurred attempting to retrieve secret",
-			"redis_get_error")
+			errTitle,
+			errMsg,
+			deleteOriginal,
+			errCallback)
 		c.Data(code, gin.MIMEJSON, res)
 		return
 	}
@@ -49,6 +69,7 @@ func CallbackSendSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Conte
 		res, code := secretslack.NewSlackErrorResponse(
 			":x: Sorry, an error occurred",
 			"An error occurred attempting to retrieve secret",
+			false,
 			"decrypt_error")
 		c.Data(code, gin.MIMEJSON, res)
 		return
@@ -81,6 +102,7 @@ func CallbackSendSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Conte
 		res, code := secretslack.NewSlackErrorResponse(
 			":x: Sorry, an error occurred",
 			"An error occurred attempting to retrieve secret",
+			false,
 			"json_marshal_error")
 		c.Data(code, gin.MIMEJSON, res)
 		return
@@ -109,6 +131,7 @@ func CallbackDeleteSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Con
 		res, code := secretslack.NewSlackErrorResponse(
 			":x: Sorry, an error occurred",
 			"An error occurred attempting to delete secret",
+			false,
 			"json_marshal_error")
 		c.Data(code, gin.MIMEJSON, res)
 		return

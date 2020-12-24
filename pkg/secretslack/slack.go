@@ -79,11 +79,12 @@ func SendResponseUrlMessage(ctx context.Context, uri string, msg slack.Message) 
 }
 
 // NewSlackErrorResponse Constructs a json response for an ephemeral message back to a user
-func NewSlackErrorResponse(title, text, callbackID string) ([]byte, int) {
+func NewSlackErrorResponse(title string, text string, deleteOriginal bool, callbackID string) ([]byte, int) {
 	responseCode := http.StatusOK
 	response := slack.Message{
 		Msg: slack.Msg{
-			ResponseType: slack.ResponseTypeEphemeral,
+			DeleteOriginal: deleteOriginal,
+			ResponseType:   slack.ResponseTypeEphemeral,
 			Attachments: []slack.Attachment{{
 				Title:      title,
 				Fallback:   title,

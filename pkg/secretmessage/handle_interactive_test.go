@@ -110,7 +110,8 @@ var _ = Describe("/interactive", func() {
 				b, _ := ioutil.ReadAll(serverResponse.Body)
 				json.Unmarshal(b, &msg)
 				Expect(serverResponse.Code).To(Equal(http.StatusOK))
-				Expect(msg.Attachments[0].Text).To(MatchRegexp(`An error occurred attempting to retrieve secret`))
+				Expect(msg.Attachments[0].Text).To(MatchRegexp(`This Secret has already been retrieved or has expired`))
+				Expect(msg.DeleteOriginal).To(BeTrue())
 			})
 		})
 		Context("on db error", func() {
@@ -124,6 +125,7 @@ var _ = Describe("/interactive", func() {
 				json.Unmarshal(b, &msg)
 				Expect(serverResponse.Code).To(Equal(http.StatusOK))
 				Expect(msg.Attachments[0].Text).To(MatchRegexp(`An error occurred attempting to retrieve secret`))
+				Expect(msg.DeleteOriginal).To(BeFalse())
 			})
 		})
 	})
