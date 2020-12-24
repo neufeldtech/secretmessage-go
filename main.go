@@ -2,14 +2,23 @@ package main
 
 import (
 	"fmt"
+	"net/http"
+	"time"
+
 	"strconv"
+
+	"os"
 
 	"github.com/go-redis/redis"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretmessage"
+	"github.com/neufeldtech/secretmessage-go/pkg/secretslack"
 	"github.com/prometheus/common/log"
-	"golang.org/x/oauth2"
+	_ "go.elastic.co/apm/module/apmgormv2"
+	postgres "go.elastic.co/apm/module/apmgormv2/driver/postgres"
 
-	"os"
+	"go.elastic.co/apm/module/apmhttp"
+	"golang.org/x/oauth2"
+	"gorm.io/gorm"
 )
 
 var (
@@ -20,6 +29,17 @@ var (
 	slackCallbackURLConfigKey         = "slackCallbackURL"
 	legacyCryptoKeyConfigKey          = "legacyCryptoKey"
 	appURLConfigKey                   = "appURL"
+	databaseURL                       = "databaseURL"
+
+	configMap = map[string]string{
+		slackSigningSecretConfigKey: os.Getenv("SLACK_SIGNING_SECRET"),
+		slackClientIDConfigKey:      os.Getenv("SLACK_CLIENT_ID"),
+		slackClientSecretConfigKey:  os.Getenv("SLACK_CLIENT_SECRET"),
+		slackCallbackURLConfigKey:   os.Getenv("SLACK_CALLBACK_URL"),
+		legacyCryptoKeyConfigKey:    os.Getenv("CRYPTO_KEY"),
+		appURLConfigKey:             os.Getenv("APP_URL"),
+		databaseURL:                 os.Getenv("DATABASE_URL"),
+	}
 )
 
 func resolvePort() int64 {
@@ -36,32 +56,25 @@ func resolvePort() int64 {
 }
 
 func main() {
-
-	configMap := map[string]string{
-		slackSigningSecretConfigKey: os.Getenv("SLACK_SIGNING_SECRET"),
-		slackClientIDConfigKey:      os.Getenv("SLACK_CLIENT_ID"),
-		slackClientSecretConfigKey:  os.Getenv("SLACK_CLIENT_SECRET"),
-		slackCallbackURLConfigKey:   os.Getenv("SLACK_CALLBACK_URL"),
-		legacyCryptoKeyConfigKey:    os.Getenv("CRYPTO_KEY"),
-		appURLConfigKey:             os.Getenv("APP_URL"),
-	}
+	// Setup custom HTTP Client for calling Slack
+	secretslack.SetHTTPClient(apmhttp.WrapClient(
+		&http.Client{
+			Timeout: time.Second * 5,
+		},
+	))
 	for k, v := range configMap {
 		if v == "" {
 			log.Fatalf("error initializaing config. key %v was not set", k)
 		}
 	}
-	redisOptions, err := redis.ParseURL(os.Getenv("REDIS_URL"))
-	if err != nil {
-		log.Fatalf("error parsing REDIS_URL: %v", err)
-	}
 
-	secretmessage.SetConfig(secretmessage.Config{
+	conf := secretmessage.Config{
 		Port:            resolvePort(),
-		RedisOptions:    redisOptions,
 		SlackToken:      "",
 		SigningSecret:   configMap[slackSigningSecretConfigKey],
 		AppURL:          configMap[appURLConfigKey],
 		LegacyCryptoKey: configMap[legacyCryptoKeyConfigKey],
+		DatabaseURL:     configMap[databaseURL],
 		OauthConfig: &oauth2.Config{
 			ClientID:     configMap[slackClientIDConfigKey],
 			ClientSecret: configMap[slackClientSecretConfigKey],
@@ -72,10 +85,37 @@ func main() {
 				TokenURL: "https://slack.com/api/oauth.v2.access",
 			},
 		},
-	},
+	}
+
+	db, err := gorm.Open(postgres.Open(conf.DatabaseURL), &gorm.Config{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	d, _ := db.DB()
+	d.SetMaxIdleConns(10)
+	d.SetMaxOpenConns(10)
+
+	db.AutoMigrate(secretmessage.Secret{})
+	db.AutoMigrate(secretmessage.Team{})
+
+	redisOptions, err := redis.ParseURL(os.Getenv("REDIS_URL"))
+	if err != nil {
+		log.Fatalf("error parsing REDIS_URL: %v", err)
+	}
+	rc := redis.NewClient(redisOptions)
+	err = secretmessage.MigrateSecretsToPostgres(rc, db)
+	if err != nil {
+		log.Fatalf("fatal error encountered during migration: %v", err)
+		os.Exit(1)
+	}
+
+	controller := secretmessage.NewController(
+		conf,
+		db,
 	)
-	go secretmessage.StayAwake(secretmessage.GetConfig())
-	r := secretmessage.SetupRouter(secretmessage.GetConfig())
-	log.Infof("Booted and listening on port %v", secretmessage.GetConfig().Port)
-	r.Run(fmt.Sprintf("0.0.0.0:%v", secretmessage.GetConfig().Port)) // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
+
+	go secretmessage.StayAwake(conf)
+	r := controller.ConfigureRoutes()
+	log.Infof("Booted and listening on port %v", conf.Port)
+	r.Run(fmt.Sprintf("0.0.0.0:%v", conf.Port))
 }
