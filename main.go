@@ -13,7 +13,7 @@ import (
 	"github.com/neufeldtech/secretmessage-go/pkg/secretmessage"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretslack"
 	"github.com/prometheus/common/log"
-
+	_ "go.elastic.co/apm/module/apmgormv2"
 	postgres "go.elastic.co/apm/module/apmgormv2/driver/postgres"
 
 	"go.elastic.co/apm/module/apmhttp"
