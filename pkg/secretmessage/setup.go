@@ -2,6 +2,7 @@ package secretmessage
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -78,23 +79,23 @@ func MigrateSecretsToPostgres(redis *redis.Client, db *gorm.DB) error {
 	}
 
 	for _, teamID := range teamKeys {
-		team, err := rc.WithContext(ctx).HMGet(teamID, "name", "access_token", "scope").Result()
+		teamHash, err := rc.WithContext(ctx).HMGet(teamID, "name", "access_token", "scope").Result()
 		if err != nil {
 			log.Errorf("error getting key %v from redis %v\n", teamID, err)
 			continue
 		}
-		teamName := team[0].(string)
-		accessToken := team[1].(string)
-		scope := team[2].(string)
+		teamName := teamHash[0].(string)
+		accessToken := teamHash[1].(string)
+		scope := teamHash[2].(string)
 
-		err = db.WithContext(ctx).Create(
-			&Team{
-				ID:          teamID,
-				Name:        teamName,
-				AccessToken: accessToken,
-				Scope:       scope,
-			},
-		).Error
+		team := &Team{
+			ID: teamID,
+		}
+		err = db.
+			WithContext(ctx).
+			Attrs(Team{Paid: sql.NullBool{Bool: false, Valid: true}}).
+			Assign(Team{ID: teamID, Name: teamName, AccessToken: accessToken, Scope: scope}).
+			FirstOrCreate(&team).Error
 		if err != nil {
 			log.Errorf("error inserting team %v into db %v", teamID, err)
 			continue
@@ -108,13 +109,14 @@ func MigrateSecretsToPostgres(redis *redis.Client, db *gorm.DB) error {
 			log.Errorf("error getting key %v from redis %v\n", secretID, err)
 			continue
 		}
-		err = db.WithContext(ctx).Create(
-			&Secret{
-				ID:        secretID,
-				ExpiresAt: time.Now().Add(time.Hour * 300),
-				Value:     secretValue,
-			},
-		).Error
+		secret := &Secret{
+			ID: secretID,
+		}
+		err = db.
+			WithContext(ctx).
+			Attrs(Secret{ExpiresAt: time.Now().Add(time.Hour * 24 * 14)}).
+			Assign(Secret{ID: secretID, Value: secretValue}).
+			FirstOrCreate(&secret).Error
 		if err != nil {
 			log.Errorf("error inserting secret %v into db %v", secretID, err)
 			continue

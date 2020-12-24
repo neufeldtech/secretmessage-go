@@ -17,10 +17,6 @@ var (
 	apiClients = make(map[string]*slack.Client)
 	mux        sync.Mutex
 	httpClient = http.DefaultClient
-	// httpClient = apmhttp.WrapClient(&http.Client{
-	// 	Timeout: time.Second * 5,
-	// })
-
 )
 
 func SetHTTPClient(hc *http.Client) {

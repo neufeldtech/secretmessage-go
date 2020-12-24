@@ -1,7 +1,7 @@
 module github.com/neufeldtech/secretmessage-go
 
-// +heroku goVersion go1.13
-go 1.13
+// +heroku goVersion go1.14
+go 1.14
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0
@@ -27,10 +27,10 @@ require (
 	github.com/slack-go/slack v0.6.4
 	github.com/stretchr/testify v1.6.1 // indirect
 	go.elastic.co/apm v1.9.0
-	go.elastic.co/apm/module/apmgin v1.8.0
+	go.elastic.co/apm/module/apmgin v1.9.0
 	go.elastic.co/apm/module/apmgoredis v1.9.0
 	go.elastic.co/apm/module/apmgormv2 v1.9.0
-	go.elastic.co/apm/module/apmhttp v1.8.0
+	go.elastic.co/apm/module/apmhttp v1.9.0
 	golang.org/x/crypto v0.0.0-20201217014255-9d1352758620 // indirect
 	golang.org/x/net v0.0.0-20201202161906-c7110b5ffcbb
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
