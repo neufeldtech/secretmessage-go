@@ -121,7 +121,8 @@ func SlashSecret(ctl *PublicController, c *gin.Context, tx *apm.Transaction, s s
 
 func AppReinstallNeeded(ctl *PublicController, c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) bool {
 	var team Team
-	err := ctl.db.WithContext(c).Where("id = ?", s.TeamID).First(&team).Error
+	hc := c.Request.Context()
+	err := ctl.db.WithContext(hc).Where("id = ?", s.TeamID).First(&team).Error
 	if err != nil || team.AccessToken == "" {
 		log.Warnf("%v: could not find access_token for team %v in store", err, s.TeamID)
 		return true
