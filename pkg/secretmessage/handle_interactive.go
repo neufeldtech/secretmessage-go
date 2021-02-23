@@ -24,7 +24,7 @@ func (ctl *PublicController) HandleInteractive(c *gin.Context) {
 		return
 	}
 	tx.Context.SetLabel("userHash", hash(i.User.ID))
-	tx.Context.SetLabel("teamHash", hash(i.User.TeamID))
+	tx.Context.SetLabel("teamHash", hash(i.Team.ID))
 	callbackType := strings.Split(i.CallbackID, ":")[0]
 	switch callbackType {
 	case "send_secret":
