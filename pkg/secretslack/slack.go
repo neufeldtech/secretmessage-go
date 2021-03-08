@@ -40,6 +40,7 @@ func SendResponseUrlMessage(ctx context.Context, uri string, msg slack.Message) 
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		e := fmt.Sprintf("error: received status code from slack %v", resp.StatusCode)
 		return errors.New(e)
