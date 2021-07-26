@@ -25,7 +25,7 @@ require (
 	github.com/sirupsen/logrus v1.7.0 // indirect
 	github.com/slack-go/slack v0.6.4
 	github.com/stretchr/testify v1.6.1 // indirect
-	go.elastic.co/apm v1.9.0
+	go.elastic.co/apm v1.11.0
 	go.elastic.co/apm/module/apmgin v1.9.0
 	go.elastic.co/apm/module/apmgormv2 v1.9.0
 	go.elastic.co/apm/module/apmhttp v1.9.0
