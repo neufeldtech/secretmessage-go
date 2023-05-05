@@ -5,7 +5,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/golang:1.14
+      - image: cimg/go:1.20.4
     steps:
       - checkout
       - run: go test -v ./...
