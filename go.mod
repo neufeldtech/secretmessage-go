@@ -12,14 +12,22 @@ require (
 	github.com/onsi/gomega v1.10.4
 	github.com/prometheus/common v0.9.1
 	github.com/slack-go/slack v0.6.4
-	go.elastic.co/apm v1.11.0
+	go.elastic.co/apm v1.15.0
 	go.elastic.co/apm/module/apmgin v1.9.0
-	go.elastic.co/apm/module/apmgormv2 v1.9.0
+	go.elastic.co/apm/module/apmgormv2 v1.15.0
 	go.elastic.co/apm/module/apmhttp v1.9.0
 	golang.org/x/net v0.7.0
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	gorm.io/driver/postgres v1.0.5
 	gorm.io/gorm v1.20.8
+)
+
+require (
+	github.com/elastic/go-licenser v0.3.1 // indirect
+	github.com/jcchavezs/porto v0.1.0 // indirect
+	golang.org/x/lint v0.0.0-20201208152925-83fdc39ff7b5 // indirect
+	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
+	golang.org/x/tools v0.1.12 // indirect
 )
 
 require (
@@ -65,7 +73,7 @@ require (
 	github.com/sirupsen/logrus v1.7.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.9 // indirect
-	go.elastic.co/apm/module/apmsql v1.9.0 // indirect
+	go.elastic.co/apm/module/apmsql v1.15.0 // indirect
 	go.elastic.co/fastjson v1.1.0 // indirect
 	golang.org/x/arch v0.0.0-20210923205945-b76863e36670 // indirect
 	golang.org/x/crypto v0.5.0 // indirect
