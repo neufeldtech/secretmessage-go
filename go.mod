@@ -13,7 +13,7 @@ require (
 	github.com/prometheus/common v0.9.1
 	github.com/slack-go/slack v0.12.2
 	go.elastic.co/apm v1.15.0
-	go.elastic.co/apm/module/apmgin v1.9.0
+	go.elastic.co/apm/module/apmgin v1.15.0
 	go.elastic.co/apm/module/apmgormv2 v1.15.0
 	go.elastic.co/apm/module/apmhttp v1.15.0
 	golang.org/x/net v0.9.0
