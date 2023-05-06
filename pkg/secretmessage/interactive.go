@@ -8,7 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretslack"
-	"github.com/prometheus/common/log"
+	log "github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
 	"go.elastic.co/apm"
 	"gorm.io/gorm"

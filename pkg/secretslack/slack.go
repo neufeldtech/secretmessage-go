@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/prometheus/common/log"
+	log "github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
 )
 
