@@ -1,5 +1,5 @@
 bin
-.env*
+/.env*
 tmp
 secretmessage-go
 dump.rdb
