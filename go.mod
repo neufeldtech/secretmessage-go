@@ -19,7 +19,7 @@ require (
 	golang.org/x/net v0.9.0
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f
 	gorm.io/driver/postgres v1.0.5
-	gorm.io/gorm v1.20.8
+	gorm.io/gorm v1.25.0
 )
 
 require (
@@ -57,7 +57,7 @@ require (
 	github.com/jackc/pgtype v1.6.2 // indirect
 	github.com/jackc/pgx/v4 v4.10.1 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
-	github.com/jinzhu/now v1.1.1 // indirect
+	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/joeshaw/multierror v0.0.0-20140124173710-69b34d4ec901 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
