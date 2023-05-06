@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/prometheus/common/log"
+	log "github.com/sirupsen/logrus"
 )
 
 func callHealth(url string) error {
