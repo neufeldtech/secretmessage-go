@@ -18,13 +18,14 @@ require (
 	go.elastic.co/apm/module/apmhttp v1.15.0
 	golang.org/x/net v0.9.0
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f
-	gorm.io/driver/postgres v1.0.5
-	gorm.io/gorm v1.20.8
+	gorm.io/driver/postgres v1.5.1
+	gorm.io/gorm v1.25.0
 )
 
 require (
 	github.com/elastic/go-licenser v0.3.1 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
+	github.com/jackc/pgx/v5 v5.3.1 // indirect
 	github.com/jcchavezs/porto v0.1.0 // indirect
 	github.com/rogpeppe/go-internal v1.8.1 // indirect
 	github.com/stretchr/testify v1.8.2 // indirect
@@ -53,11 +54,11 @@ require (
 	github.com/jackc/pgio v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgproto3/v2 v2.0.6 // indirect
-	github.com/jackc/pgservicefile v0.0.0-20200714003250-2b9c44734f2b // indirect
+	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
 	github.com/jackc/pgtype v1.6.2 // indirect
 	github.com/jackc/pgx/v4 v4.10.1 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
-	github.com/jinzhu/now v1.1.1 // indirect
+	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/joeshaw/multierror v0.0.0-20140124173710-69b34d4ec901 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
@@ -76,7 +77,7 @@ require (
 	go.elastic.co/apm/module/apmsql v1.15.0 // indirect
 	go.elastic.co/fastjson v1.1.0 // indirect
 	golang.org/x/arch v0.0.0-20210923205945-b76863e36670 // indirect
-	golang.org/x/crypto v0.5.0 // indirect
+	golang.org/x/crypto v0.8.0 // indirect
 	golang.org/x/sys v0.7.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
