@@ -19,6 +19,7 @@ require (
 	golang.org/x/net v0.10.0
 	golang.org/x/oauth2 v0.8.0
 	gorm.io/driver/postgres v1.0.5
+	gorm.io/driver/sqlite v1.1.4-0.20200928065301-698e250a3b0d
 	gorm.io/gorm v1.20.8
 )
 
@@ -27,6 +28,7 @@ require (
 	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/jcchavezs/porto v0.1.0 // indirect
+	github.com/mattn/go-sqlite3 v1.14.3 // indirect
 	golang.org/x/lint v0.0.0-20201208152925-83fdc39ff7b5 // indirect
 	golang.org/x/mod v0.10.0 // indirect
 	golang.org/x/tools v0.9.1 // indirect
