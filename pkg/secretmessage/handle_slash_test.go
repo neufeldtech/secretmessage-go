@@ -75,7 +75,8 @@ var _ = Describe("/secret", func() {
 			httpmock.RegisterResponder("POST", responseURL, httpmock.NewStringResponder(200, `ok`))
 			tx := gdb.Create(&secretmessage.Team{ID: teamID, AccessToken: accessToken})
 			Expect(tx.Error).To(BeNil())
-			tx = gdb.Take(&secretmessage.Secret{})
+			var s secretmessage.Secret
+			tx = gdb.Take(&s)
 			Expect(tx.RowsAffected).To(BeEquivalentTo(0))
 		})
 		It("should have a zero byte body", func() {
