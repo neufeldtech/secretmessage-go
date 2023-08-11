@@ -28,10 +28,9 @@ Visit [secretmessage.xyz](http://secretmessage.xyz) and click the **Add to Slack
 
 Please [open a Github Issue](https://github.com/neufeldtech/secretmessage-go/issues/new) or [Email us](mailto:support@secretmessage.xyz) if you require assistance
 
-## Contribute
-- [Fork the repo](https://github.com/neufeldtech/secretmessage-go/fork)
-- Make your contribution
-- [Open a pull request](https://github.com/neufeldtech/secretmessage-go/pulls)
+## Want something customized?
+
+Feel free to fork the repo and make changes as you wish. Pull requests for features back to this repo may not be reviewed or accepted due to time and resourcing constraints.
 
 ## License
 The MIT License (MIT)
