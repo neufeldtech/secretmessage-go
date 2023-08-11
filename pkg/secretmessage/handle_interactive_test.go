@@ -1,7 +1,6 @@
 package secretmessage_test
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -12,22 +11,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gin-gonic/gin"
 	"github.com/jarcoal/httpmock"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretmessage"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/slack-go/slack"
-	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
 var _ = Describe("/interactive", func() {
-	var mock sqlmock.Sqlmock
-	var db *sql.DB
 	var gdb *gorm.DB
-	// var err error
 	var ctl *secretmessage.PublicController
 	var router *gin.Engine
 	var serverResponse *httptest.ResponseRecorder
@@ -48,48 +43,32 @@ var _ = Describe("/interactive", func() {
 		}
 
 		BeforeEach(func() {
-			// Configuration
 			httpmock.Activate()
-			db, mock, err = sqlmock.New()
-			if err != nil {
-				log.Fatalf("error initializing sqlmock %v", err)
-			}
-			gdb, err = gorm.Open(postgres.New(postgres.Config{
-				Conn: db,
-			}), &gorm.Config{})
+			gdb, err = gorm.Open(sqlite.Open("file::memory:?cache=shared&dbname=handle_interactive_get"), &gorm.Config{})
 			if err != nil {
 				log.Fatal(err)
 			}
+			gdb.AutoMigrate(secretmessage.Team{})
+			gdb.AutoMigrate(secretmessage.Secret{})
 			ctl = secretmessage.NewController(
 				secretmessage.Config{SkipSignatureValidation: true},
 				gdb,
 			)
 		})
 		JustBeforeEach(func() {
-			// creation of objects
 			router = ctl.ConfigureRoutes()
 			serverResponse = doHttpRequest(router, strings.NewReader(requestBody.Encode()), map[string]string{"Content-Type": "application/x-www-form-urlencoded"}, "POST", "/interactive")
 		})
 		AfterEach(func() {
-			Expect(mock.ExpectationsWereMet()).To(BeNil())
 			httpmock.DeactivateAndReset()
+			db, _ := gdb.DB()
 			db.Close()
 		})
 
 		Context("on happy path", func() {
 			BeforeEach(func() {
-				stmt := `SELECT \* FROM "secrets" WHERE id \= \$1 AND "secrets"\."deleted_at" IS NULL ORDER BY "secrets"\."id" LIMIT 1`
-				rows := sqlmock.NewRows([]string{"id", "created_at", "updated_at", "deleted_at", "expires_at", "value"}).AddRow(
-					secretIDHashed,
-					time.Now(),
-					time.Now(),
-					nil,
-					time.Now(),
-					encryptedPayload,
-				)
-				mock.ExpectQuery(stmt).WithArgs(secretIDHashed).WillReturnRows(rows)
-				stmt = `DELETE FROM "secrets" WHERE id \= \$1`
-				mock.ExpectExec(stmt).WithArgs(secretIDHashed).WillReturnResult(sqlmock.NewResult(1, 1))
+				tx := gdb.Create(&secretmessage.Secret{ID: secretIDHashed, Value: encryptedPayload, ExpiresAt: time.Now().Add(time.Hour)})
+				Expect(tx.RowsAffected).To(BeEquivalentTo(1))
 			})
 			It("should return decrypted secret", func() {
 				var msg slack.Message
@@ -98,12 +77,17 @@ var _ = Describe("/interactive", func() {
 				Expect(serverResponse.Code).To(Equal(http.StatusOK))
 				Expect(msg.Attachments[0].Text).To(MatchRegexp(`the password is baseball123`))
 			})
+			It("should delete secret from DB", func() {
+				var s secretmessage.Secret
+				tx := gdb.Take(&s)
+				Expect(tx.RowsAffected).To(BeEquivalentTo(0))
+			})
 		})
 		Context("on secret not found in DB", func() {
 			BeforeEach(func() {
-				stmt := `SELECT \* FROM "secrets" WHERE id \= \$1 AND "secrets"\."deleted_at" IS NULL ORDER BY "secrets"\."id" LIMIT 1`
-				rows := sqlmock.NewRows([]string{"id", "created_at", "updated_at", "deleted_at", "expires_at", "value"})
-				mock.ExpectQuery(stmt).WithArgs(secretIDHashed).WillReturnRows(rows)
+				var s secretmessage.Secret
+				tx := gdb.Take(&s)
+				Expect(tx.RowsAffected).To(BeEquivalentTo(0))
 			})
 			It("should return error message", func() {
 				var msg slack.Message
@@ -116,8 +100,9 @@ var _ = Describe("/interactive", func() {
 		})
 		Context("on db error", func() {
 			BeforeEach(func() {
-				stmt := `SELECT \* FROM "secrets" WHERE id \= \$1 AND "secrets"\."deleted_at" IS NULL ORDER BY "secrets"\."id" LIMIT 1`
-				mock.ExpectQuery(stmt).WithArgs(secretIDHashed).WillReturnError(fmt.Errorf("something bad happened"))
+				// force an error by closing DB
+				db, _ := gdb.DB()
+				db.Close()
 			})
 			It("should return error message", func() {
 				var msg slack.Message
@@ -144,16 +129,12 @@ var _ = Describe("/interactive", func() {
 
 		BeforeEach(func() {
 			// Configuration
-			db, mock, err = sqlmock.New()
-			if err != nil {
-				log.Fatalf("error initializing sqlmock %v", err)
-			}
-			gdb, err = gorm.Open(postgres.New(postgres.Config{
-				Conn: db,
-			}), &gorm.Config{})
+			gdb, err = gorm.Open(sqlite.Open("file::memory:?cache=shared&dbname=handle_interactive_delete"), &gorm.Config{})
 			if err != nil {
 				log.Fatal(err)
 			}
+			gdb.AutoMigrate(secretmessage.Team{})
+			gdb.AutoMigrate(secretmessage.Secret{})
 			ctl = secretmessage.NewController(
 				secretmessage.Config{SkipSignatureValidation: true},
 				gdb,
@@ -165,7 +146,7 @@ var _ = Describe("/interactive", func() {
 			serverResponse = doHttpRequest(router, strings.NewReader(requestBody.Encode()), map[string]string{"Content-Type": "application/x-www-form-urlencoded"}, "POST", "/interactive")
 		})
 		AfterEach(func() {
-			Expect(mock.ExpectationsWereMet()).To(BeNil())
+			db, _ := gdb.DB()
 			db.Close()
 		})
 

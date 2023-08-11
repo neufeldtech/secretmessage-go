@@ -1,26 +1,22 @@
 package secretmessage_test
 
 import (
-	"database/sql"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"time"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gin-gonic/gin"
 	"github.com/jarcoal/httpmock"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretmessage"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"golang.org/x/oauth2"
-	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
 var _ = Describe("/auth/slack/callback", func() {
-	var mock sqlmock.Sqlmock
-	var db *sql.DB
 	var gdb *gorm.DB
 	var err error
 	var ctl *secretmessage.PublicController
@@ -34,16 +30,12 @@ var _ = Describe("/auth/slack/callback", func() {
 	var scopes = "scope1,scope2,scope3"
 	BeforeEach(func() {
 		httpmock.Activate()
-		db, mock, err = sqlmock.New()
-		if err != nil {
-			log.Fatalf("error initializing sqlmock %v", err)
-		}
-		gdb, err = gorm.Open(postgres.New(postgres.Config{
-			Conn: db,
-		}), &gorm.Config{})
+		gdb, err = gorm.Open(sqlite.Open("file::memory:?cache=shared&dbname=handle_oauth_callback"), &gorm.Config{})
 		if err != nil {
 			log.Fatal(err)
 		}
+		gdb.AutoMigrate(secretmessage.Team{})
+		gdb.AutoMigrate(secretmessage.Secret{})
 		ctl = secretmessage.NewController(
 			secretmessage.Config{
 				SkipSignatureValidation: true,
@@ -72,8 +64,8 @@ var _ = Describe("/auth/slack/callback", func() {
 		serverResponse = doHttpRequest(router, nil, callbackHeaders, "GET", callbackURI)
 	})
 	AfterEach(func() {
-		Expect(mock.ExpectationsWereMet()).To(BeNil())
 		httpmock.DeactivateAndReset()
+		db, _ := gdb.DB()
 		db.Close()
 	})
 	Context("on happy path", func() {
@@ -93,30 +85,27 @@ var _ = Describe("/auth/slack/callback", func() {
 			}))
 		})
 		Context("when team does not exist in db", func() {
-			BeforeEach(func() {
-				stmt := `SELECT \* FROM "teams" WHERE "teams"\."id" \= \$1 AND "teams"\."deleted_at" IS NULL ORDER BY "teams"\."id" LIMIT 1`
-				rows := sqlmock.NewRows([]string{"id", "created_at", "updated_at", "deleted_at", "access_token", "scope", "name", "paid"})
-				mock.ExpectQuery(stmt).WithArgs(teamID).WillReturnRows(rows)
-
-				stmt = `INSERT INTO "teams" \("id","created_at","updated_at","deleted_at","access_token","scope","name","paid"\) VALUES \(\$1,\$2,\$3,\$4,\$5,\$6,\$7,\$8\)`
-				mock.ExpectExec(stmt).WithArgs(teamID, AnyTime{}, AnyTime{}, nil, accessToken, scopes, teamName, false).WillReturnResult(sqlmock.NewResult(1, 1))
-			})
-			It("redirects to success page", func() {
+			It("redirects to success page and has a recently created record", func() {
+				var team secretmessage.Team
+				threshold := time.Now().Add(-time.Minute)
+				tx := gdb.First(&team, "id = ? AND created_at >= ?", teamID, threshold)
+				Expect(tx.RowsAffected).To(BeEquivalentTo(1))
 				Expect(serverResponse.Code).To(Equal(http.StatusFound))
 				Expect(serverResponse.Result().Header.Get("Location")).To(MatchRegexp(`/success`))
 			})
 		})
 		Context("when team already exists in db", func() {
+			createTime := time.Time{}
 			BeforeEach(func() {
-				stmt := `SELECT \* FROM "teams" WHERE "teams"\."id" \= \$1 AND "teams"\."deleted_at" IS NULL ORDER BY "teams"\."id" LIMIT 1`
-				rows := sqlmock.NewRows([]string{"id", "created_at", "updated_at", "deleted_at", "access_token", "scope", "name", "paid"}).
-					AddRow(teamID, time.Now(), time.Now(), nil, "old-access-token", "oldscope", "oldname", true)
-				mock.ExpectQuery(stmt).WithArgs(teamID).WillReturnRows(rows)
-
-				stmt = `UPDATE "teams" SET "access_token"\=\$1,"name"\=\$2,"scope"\=\$3,"updated_at"\=\$4 WHERE "teams"\."id" \= \$5 AND "teams"\."deleted_at" IS NULL AND "id" \= \$6`
-				mock.ExpectExec(stmt).WithArgs(accessToken, teamName, scopes, AnyTime{}, teamID, teamID).WillReturnResult(sqlmock.NewResult(1, 1))
+				team := secretmessage.Team{ID: teamID}
+				tx := gdb.Create(&team).First(&team)
+				createTime = team.CreatedAt
+				Expect(tx.RowsAffected).To(BeEquivalentTo(1))
 			})
-			It("redirects to success page", func() {
+			It("redirects to success page without creating any team", func() {
+				var team secretmessage.Team
+				tx := gdb.First(&team, "id = ? AND created_at = ?", teamID, createTime)
+				Expect(tx.RowsAffected).To(BeEquivalentTo(1))
 				Expect(serverResponse.Code).To(Equal(http.StatusFound))
 				Expect(serverResponse.Result().Header.Get("Location")).To(MatchRegexp(`/success`))
 			})
