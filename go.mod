@@ -17,7 +17,7 @@ require (
 	go.elastic.co/apm/module/apmhttp v1.15.0
 	golang.org/x/net v0.14.0
 	golang.org/x/oauth2 v0.11.0
-	gorm.io/driver/sqlite v1.5.2
+	gorm.io/driver/sqlite v1.5.3
 	gorm.io/gorm v1.25.3
 )
 
