@@ -22,8 +22,9 @@
 	"forwardPorts": [
 		8080
 	],
+	// "initializeCommand": "./initialize.sh",
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "cloudflared tunnel --url http://localhost:8080"
+	"postCreateCommand": "./setup.sh"
 	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
 	// "remoteUser": "root"
 }
