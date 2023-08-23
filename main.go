@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -55,6 +56,15 @@ func resolvePort() int64 {
 }
 
 func main() {
+	tp, err := secretmessage.InitTracer(secretmessage.ServiceName)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func() {
+		if err := tp.Shutdown(context.Background()); err != nil {
+			log.Printf("Error shutting down tracer provider: %v", err)
+		}
+	}()
 	// Setup custom HTTP Client for calling Slack
 	secretslack.SetHTTPClient(apmhttp.WrapClient(
 		&http.Client{

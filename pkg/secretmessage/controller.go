@@ -1,8 +1,11 @@
 package secretmessage
 
 import (
+	"os"
+
 	"github.com/gin-gonic/gin"
 	"go.elastic.co/apm/module/apmgin"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"gorm.io/gorm"
 )
 
@@ -21,6 +24,7 @@ func NewController(config Config, db *gorm.DB) *PublicController {
 func (ctl *PublicController) ConfigureRoutes() *gin.Engine {
 
 	r := gin.Default()
+	r.Use(otelgin.Middleware(os.Getenv("HOSTNAME")))
 	r.Use(apmgin.Middleware(r))
 
 	r.GET("/health", ctl.HandleHealth)
