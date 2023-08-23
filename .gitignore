@@ -1,5 +1,6 @@
 bin
 .env
+.urlenv
 tmp
 secretmessage-go
 dump.rdb

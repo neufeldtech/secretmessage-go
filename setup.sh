@@ -1,5 +1,7 @@
 #!/bin/bash
 
+gomplate --context 'secrets=.devcontainer/secrets.json' -f .devcontainer/.env.tmpl -o .devcontainer/.env
+
 # Start cloudflared tunnel in the background
 cloudflared tunnel --url http://localhost:8080 &
 
@@ -14,8 +16,8 @@ monitor_output() {
             local found_string="${BASH_REMATCH[0]}"
             echo "baseUrl: ${found_string}" | /bin/gomplate -d data=stdin:///foo.yaml -f manifest.yaml.tmpl -o manifest.yaml
             chmod 777 manifest.yaml
-            echo "export APP_URL=${found_string}" >> .devcontainer/.env
-            echo "export SLACK_CALLBACK_URL=${found_string}/auth/slack/callback" >> .devcontainer/.env
+            echo "export APP_URL=${found_string}" > .devcontainer/.urlenv
+            echo "export SLACK_CALLBACK_URL=${found_string}/auth/slack/callback" >> .devcontainer/.urlenv
             echo "--------------"
             echo "--------------"
             echo
