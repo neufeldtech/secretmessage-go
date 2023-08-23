@@ -1,7 +1,10 @@
 bin
-/.env*
+.env
 tmp
 secretmessage-go
 dump.rdb
 wishlist.md
 nohup.out
+manifest.yaml
+secrets.json
+.devcontainer/.env
