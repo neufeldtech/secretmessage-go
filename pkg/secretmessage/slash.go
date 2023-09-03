@@ -3,6 +3,7 @@ package secretmessage
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -43,6 +44,11 @@ func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, tx *apm
 		return storeErr
 	}
 
+	var footerMsg string
+	if link, found := os.LookupEnv("SURVEY_LINK"); found {
+		footerMsg = fmt.Sprintf("_<%s|Click here to take a 2 minute survey to help out Secret Message>_", link)
+	}
+
 	secretResponse := slack.Message{
 		Msg: slack.Msg{
 			ResponseType: slack.ResponseTypeInChannel,
@@ -51,6 +57,7 @@ func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, tx *apm
 				Fallback:   fmt.Sprintf("%v sent a secret message", s.UserName),
 				CallbackID: fmt.Sprintf("send_secret:%v", secretID),
 				Color:      "#6D5692",
+				Footer:     footerMsg,
 				Actions: []slack.AttachmentAction{{
 					Name:  "readMessage",
 					Text:  ":envelope: Read message",
