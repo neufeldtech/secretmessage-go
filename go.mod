@@ -8,7 +8,7 @@ require (
 	github.com/jarcoal/httpmock v1.3.1
 	github.com/lithammer/shortuuid v3.0.0+incompatible
 	github.com/onsi/ginkgo v1.16.5
-	github.com/onsi/gomega v1.28.0
+	github.com/onsi/gomega v1.28.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/slack-go/slack v0.12.3
 	go.elastic.co/apm v1.15.0
@@ -32,7 +32,7 @@ require (
 	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
 	github.com/go-logr/logr v1.2.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/google/go-cmp v0.5.9 // indirect
+	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0 // indirect
 	github.com/jackc/pgx/v5 v5.4.3 // indirect
 	github.com/jcchavezs/porto v0.1.0 // indirect
