@@ -22,7 +22,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.19.0
 	golang.org/x/net v0.17.0
 	golang.org/x/oauth2 v0.12.0
-	gorm.io/driver/sqlite v1.5.3
+	gorm.io/driver/sqlite v1.5.4
 	gorm.io/gorm v1.25.5
 )
 
