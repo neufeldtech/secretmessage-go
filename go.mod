@@ -23,7 +23,7 @@ require (
 	golang.org/x/net v0.17.0
 	golang.org/x/oauth2 v0.12.0
 	gorm.io/driver/sqlite v1.5.3
-	gorm.io/gorm v1.25.4
+	gorm.io/gorm v1.25.5
 )
 
 require (
