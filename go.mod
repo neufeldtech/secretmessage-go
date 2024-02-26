@@ -10,7 +10,7 @@ require (
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.31.1
 	github.com/sirupsen/logrus v1.9.3
-	github.com/slack-go/slack v0.12.3
+	github.com/slack-go/slack v0.12.5
 	go.elastic.co/apm v1.15.0
 	go.elastic.co/apm/module/apmgin v1.15.0
 	go.elastic.co/apm/module/apmgormv2 v1.15.0
