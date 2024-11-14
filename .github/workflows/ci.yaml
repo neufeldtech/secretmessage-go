@@ -1,0 +1,42 @@
+name: Build Pipeline
+
+on:
+  push:
+    # branches:
+    #   - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.head_ref || github.ref }}'
+  cancel-in-progress: true
+
+env:
+  CI: true
+  APP_NAME: 'metrics-watch'
+  ECR_REPO_NAME: 'bluegroundltd/secretmessage'
+
+jobs:
+  build-and-push-docker-image:
+    runs-on: arc-runner-set
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bluegroundltd/gha-tooling/short-sha@main
+        id: short-sha
+      - name: sleep
+        run: sleep 10000
+      # - name: Determine Docker image tag
+      #   uses: bluegroundltd/gha-tooling/define-docker-image-tag@main
+      #   id: docker-image-tag
+      #   with:
+      #     main-branch-name: main
+      #     sha: ${{ steps.short-sha.outputs.short-sha }}
+      # - uses: bluegroundltd/gha-tooling/build-and-push-docker-image@main
+      #   with:
+      #     ecr-repo-name: ${{ env.ECR_REPO_NAME }}
+      #     image-tag: ${{ steps.docker-image-tag.outputs.docker-image-tag }}
+      #     cache-enabled: 'true'

@@ -9,3 +9,4 @@ nohup.out
 manifest.yaml
 secrets.json
 .devcontainer/.env
+postgres-data

@@ -1,0 +1,34 @@
+volumes:
+  postgres-data:
+
+services:
+  db:
+    image: postgres:14
+    restart: unless-stopped
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+      - POSTGRES_HOSTNAME=localhost
+    ports:
+      - 5432:5432
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - PORT=8080
+      - CRYPTO_KEY=foo
+      - PROM_TOKEN=token
+      - SLACK_CLIENT_ID=asd
+      - SLACK_CLIENT_SECRET=dsa
+      - SLACK_SIGNING_SECRET=asddsa
+      - SLACK_VERIFICATION_TOKEN=asdasdasd
+      - SLACK_CALLBACK_URL=http://localhost
+      - APP_URL=http://localhost
+      - DATABASE_URL=postgres://postgres:postgres@db/postgres
+      # - OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
+      # - OTEL_EXPORTER_OTLP_ENDPOINT="https://localhost"
+      # - OTEL_EXPORTER_OTLP_HEADERS="adsdas"
