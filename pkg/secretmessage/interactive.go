@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/neufeldtech/secretmessage-go/pkg/secretmessage/actions"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretslack"
 	log "github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
@@ -14,12 +15,12 @@ import (
 	"gorm.io/gorm"
 )
 
-func CallbackSendSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Context, i slack.InteractionCallback) {
+func CallbackReadSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Context, i slack.InteractionCallback) {
 	hc := c.Request.Context()
-	tx.Context.SetLabel("callbackID", "send_secret")
-	tx.Context.SetLabel("action", "sendSecret")
+	tx.Context.SetLabel("callbackID", actions.ReadMessage)
+	tx.Context.SetLabel("action", "readSecret")
 
-	secretID := strings.ReplaceAll(i.CallbackID, "send_secret:", "")
+	secretID := strings.ReplaceAll(i.CallbackID, fmt.Sprintf("%s:", actions.ReadMessage), "")
 	tx.Context.SetLabel("secretIDHash", hash(secretID))
 
 	// Fetch secret
@@ -83,7 +84,7 @@ func CallbackSendSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Conte
 				Title:      "Secret message",
 				Fallback:   "Secret message",
 				Text:       secretDecrypted,
-				CallbackID: fmt.Sprintf("delete_secret:%v", secretID),
+				CallbackID: fmt.Sprintf("%s:%v", actions.DeleteMessage, secretID),
 				Color:      "#6D5692",
 				Footer:     "The above message is only visible to you and will disappear when your Slack client reloads. To remove it immediately, press the delete button",
 				Actions: []slack.AttachmentAction{{
@@ -116,9 +117,9 @@ func CallbackSendSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Conte
 }
 
 func CallbackDeleteSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Context, i slack.InteractionCallback) {
-	secretID := strings.ReplaceAll(i.CallbackID, "delete_secret:", "")
+	secretID := strings.ReplaceAll(i.CallbackID, fmt.Sprintf("%s:", actions.DeleteMessage), "")
 	tx.Context.SetLabel("secretIDHash", hash(secretID))
-	tx.Context.SetLabel("callbackID", "delete_secret")
+	tx.Context.SetLabel("callbackID", actions.DeleteMessage)
 	tx.Context.SetLabel("action", "deleteMessage")
 	response := slack.Message{
 		Msg: slack.Msg{

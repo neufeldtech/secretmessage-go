@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/neufeldtech/secretmessage-go/pkg/secretmessage/actions"
 	log "github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
 	"go.elastic.co/apm"
@@ -27,9 +28,9 @@ func (ctl *PublicController) HandleInteractive(c *gin.Context) {
 	tx.Context.SetLabel("teamHash", hash(i.Team.ID))
 	callbackType := strings.Split(i.CallbackID, ":")[0]
 	switch callbackType {
-	case "send_secret":
-		CallbackSendSecret(ctl, tx, c, i)
-	case "delete_secret":
+	case actions.ReadMessage:
+		CallbackReadSecret(ctl, tx, c, i)
+	case actions.DeleteMessage:
 		CallbackDeleteSecret(ctl, tx, c, i)
 	default:
 		log.Error("Hit the default case. bad things happened")

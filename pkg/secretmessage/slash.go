@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/lithammer/shortuuid"
+	"github.com/neufeldtech/secretmessage-go/pkg/secretmessage/actions"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretslack"
 	log "github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
@@ -55,7 +56,7 @@ func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, tx *apm
 			Attachments: []slack.Attachment{{
 				Title:      fmt.Sprintf("%v sent a secret message", s.UserName),
 				Fallback:   fmt.Sprintf("%v sent a secret message", s.UserName),
-				CallbackID: fmt.Sprintf("send_secret:%v", secretID),
+				CallbackID: fmt.Sprintf("%s:%v", actions.ReadMessage, secretID),
 				Color:      "#6D5692",
 				Footer:     footerMsg,
 				Actions: []slack.AttachmentAction{{
@@ -110,7 +111,7 @@ func SlashSecret(ctl *PublicController, c *gin.Context, tx *apm.Transaction, s s
 			"An error occurred attempting to create secret",
 			false,
 			"prepare_and_send_error")
-		tx.Context.SetLabel("errorCode", "send_secret_payload_error")
+		tx.Context.SetLabel("errorCode", fmt.Sprintf("%s_payload_error", actions.ReadMessage))
 		c.Data(code, gin.MIMEJSON, res)
 		c.Abort()
 		return
