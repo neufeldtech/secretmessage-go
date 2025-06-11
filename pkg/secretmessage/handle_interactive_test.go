@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jarcoal/httpmock"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretmessage"
+	"github.com/neufeldtech/secretmessage-go/pkg/secretmessage/actions"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/slack-go/slack"
@@ -32,7 +33,7 @@ var _ = Describe("/interactive", func() {
 
 	Describe("Get Secret", func() {
 		interactionPayload := slack.InteractionCallback{
-			CallbackID: fmt.Sprintf("send_secret:%v", secretID),
+			CallbackID: fmt.Sprintf("%s:%v", actions.ReadMessage, secretID),
 		}
 		interactionBytes, err := json.Marshal(interactionPayload)
 		if err != nil {
@@ -117,7 +118,7 @@ var _ = Describe("/interactive", func() {
 
 	Describe("Delete Secret", func() {
 		interactionPayload := slack.InteractionCallback{
-			CallbackID: fmt.Sprintf("delete_secret:%v", secretID),
+			CallbackID: fmt.Sprintf("%s:%v", actions.DeleteMessage, secretID),
 		}
 		interactionBytes, err := json.Marshal(interactionPayload)
 		if err != nil {
