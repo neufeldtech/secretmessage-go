@@ -1,7 +1,7 @@
 module github.com/neufeldtech/secretmessage-go
 
-// +heroku goVersion go1.23.10
-go 1.23.10
+// +heroku goVersion go1.23
+go 1.23
 
 require (
 	github.com/gin-gonic/gin v1.9.1
