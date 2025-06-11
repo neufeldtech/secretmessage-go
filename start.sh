@@ -1,11 +1,8 @@
 #!/bin/bash
 set -x
 ENVFILE=.devcontainer/.env
-ENVFILEURLS=.devcontainer/.urlenv
 echo "sourcing $ENVFILE"
 . $ENVFILE
-echo "sourcing $ENVFILEURLS"
-. $ENVFILEURLS
 set +x
 echo "-----------------------------------------------"
 echo "-----------------------------------------------"
