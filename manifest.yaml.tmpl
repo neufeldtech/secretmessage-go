@@ -9,13 +9,13 @@ features:
     always_online: true
   slash_commands:
     - command: /secret
-      url: {{(ds "data").baseUrl}}/slash
+      url: {{(ds "data").APP_URL}}/slash
       description: Sends a self destructing secret message
       usage_hint: the password is hunter2
       should_escape: false
 oauth_config:
   redirect_urls:
-    - {{(ds "data").baseUrl}}/auth/slack/callback
+    - {{(ds "data").APP_URL}}/auth/slack/callback
   scopes:
     user:
       - identity.basic
@@ -28,7 +28,7 @@ oauth_config:
 settings:
   interactivity:
     is_enabled: true
-    request_url: {{(ds "data").baseUrl}}/interactive
+    request_url: {{(ds "data").APP_URL}}/interactive
   org_deploy_enabled: false
   socket_mode_enabled: false
   token_rotation_enabled: false
