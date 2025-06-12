@@ -99,6 +99,25 @@ var _ = Describe("/interactive", func() {
 				Expect(msg.DeleteOriginal).To(BeTrue())
 			})
 		})
+		Context("on secret expired", func() {
+			BeforeEach(func() {
+				// Insert the secret with an expired timestamp
+				tx := gdb.Create(&secretmessage.Secret{
+					ID:        secretIDHashed,
+					Value:     encryptedPayload,
+					ExpiresAt: time.Now().Add(-time.Hour), // expired 1 hour ago
+				})
+				Expect(tx.RowsAffected).To(BeEquivalentTo(1))
+			})
+			It("should return error message for expired secret", func() {
+				var msg slack.Message
+				b, _ := ioutil.ReadAll(serverResponse.Body)
+				json.Unmarshal(b, &msg)
+				Expect(serverResponse.Code).To(Equal(http.StatusOK))
+				Expect(msg.Attachments[0].Text).To(MatchRegexp(`This Secret has expired`))
+				Expect(msg.DeleteOriginal).To(BeTrue())
+			})
+		})
 		Context("on db error", func() {
 			BeforeEach(func() {
 				// force an error by closing DB

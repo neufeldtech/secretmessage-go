@@ -34,7 +34,7 @@ func CallbackReadSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Conte
 	var errCallback string
 	var deleteOriginal bool
 	switch {
-	case secret.ExpiresAt.Before(time.Now()):
+	case !secret.ExpiresAt.IsZero() && secret.ExpiresAt.Before(time.Now()):
 		getSecretErr = errors.New("Secret expired")
 		tx.Context.SetLabel("errorCode", "secret_expired")
 		errTitle = ":hourglass: Secret expired"

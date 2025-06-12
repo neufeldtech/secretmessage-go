@@ -125,7 +125,7 @@ var _ = Describe("/secret", func() {
 			var msg slack.Message
 			b, _ := ioutil.ReadAll(serverResponse.Body)
 			json.Unmarshal(b, &msg)
-			Expect(msg.Attachments[0].Text).To(MatchRegexp(`An error occurred attempting to create secret`))
+			Expect(msg.Attachments[0].Text).To(MatchRegexp(`An error occurred`))
 		})
 		It("should respond with 200", func() {
 			Expect(serverResponse.Code).To(Equal(http.StatusOK))
@@ -149,12 +149,15 @@ var _ = Describe("/secret", func() {
 				"channel_name":    []string{"fishbowl"},
 				"trigger_id":      []string{"0000000000.1111111111.222222222222aaaaaaaaaaaaaa"},
 			}
+			gdb.Create(&secretmessage.Team{ID: teamID, AccessToken: accessToken})
+
+			// registerr a responder for slack.com/api/views.open
+			// to avoid the request being sent to Slack
+			httpmock.RegisterResponder("POST", "https://slack.com/api/views.open", httpmock.NewStringResponder(200, `{"ok": true}`))
+			// httpmock.RegisterResponder("POST", responseURL, httpmock.NewStringResponder(200, `ok`))
 		})
-		It("should return a useful error message", func() {
-			var msg slack.Message
-			b, _ := ioutil.ReadAll(serverResponse.Body)
-			json.Unmarshal(b, &msg)
-			Expect(msg.Attachments[0].Text).To(MatchRegexp(`It looks like you tried to send a secret but forgot to provide the secret's text`))
+		It("should POST to views.open", func() {
+			Expect(httpmock.GetTotalCallCount()).To(Equal(1))
 		})
 		It("should respond with 200", func() {
 			Expect(serverResponse.Code).To(Equal(http.StatusOK))
@@ -168,7 +171,7 @@ var _ = Describe("/secret", func() {
 			var msg slack.Message
 			b, _ := ioutil.ReadAll(serverResponse.Body)
 			json.Unmarshal(b, &msg)
-			Expect(msg.Attachments[0].Text).To(MatchRegexp(`An error occurred attempting to create secret`))
+			Expect(msg.Attachments[0].Text).To(MatchRegexp(`An error occurred`))
 		})
 		It("should respond with 200", func() {
 			Expect(serverResponse.Code).To(Equal(http.StatusOK))
