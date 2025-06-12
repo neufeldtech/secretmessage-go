@@ -11,6 +11,7 @@ require (
 	github.com/onsi/gomega v1.31.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/slack-go/slack v0.13.1
+	github.com/stretchr/testify v1.8.4
 	go.elastic.co/apm v1.15.0
 	go.elastic.co/apm/module/apmgin v1.15.0
 	go.elastic.co/apm/module/apmgormv2 v1.15.0
@@ -28,6 +29,7 @@ require (
 
 require (
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/elastic/go-licenser v0.3.1 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect
@@ -38,6 +40,7 @@ require (
 	github.com/jackc/puddle/v2 v2.2.1 // indirect
 	github.com/jcchavezs/porto v0.1.0 // indirect
 	github.com/mattn/go-sqlite3 v1.14.17 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	go.opentelemetry.io/otel/metric v1.24.0 // indirect
 	go.opentelemetry.io/otel/trace v1.24.0 // indirect
