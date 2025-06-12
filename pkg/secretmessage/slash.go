@@ -30,7 +30,6 @@ func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, tx *apm
 	}
 
 	sec := NewSecret(hash(secretID), secretEncrypted, options...)
-	// fmt.Println("sec:", sec.ExpiresAt)
 	// Store the secret
 	storeErr := ctl.db.WithContext(hc).Create(sec).Error
 
@@ -76,7 +75,6 @@ func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, tx *apm
 
 // PromptCreateSecretModal encrypts the secret, stores in db, and sends the 'envelope' back to slack
 func PromptCreateSecretModal(ctl *PublicController, c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) error {
-	// hc := c.Request.Context()
 
 	datePicker := slack.NewDatePickerBlockElement("expiry_date_input")
 	datePicker.InitialDate = time.Now().AddDate(0, 0, 7).Format("2006-01-02")
@@ -88,7 +86,6 @@ func PromptCreateSecretModal(ctl *PublicController, c *gin.Context, tx *apm.Tran
 		Title:  slack.NewTextBlockObject("plain_text", "Send a Secret", false, false),
 		Close:  slack.NewTextBlockObject("plain_text", "Cancel", false, false),
 		Submit: slack.NewTextBlockObject("plain_text", "Send", false, false),
-		// CallbackID:      string(actions.ViewSubmission),
 		PrivateMetadata: s.ResponseURL,
 		Blocks: slack.Blocks{
 			BlockSet: []slack.Block{
@@ -118,7 +115,6 @@ func PromptCreateSecretModal(ctl *PublicController, c *gin.Context, tx *apm.Tran
 		return getTeamErr
 	}
 
-	// c.Set("slackClient", secretslack.GetSlackClient(team.AccessToken))
 	api := secretslack.GetSlackClient(team.AccessToken)
 
 	_, err := api.OpenView(s.TriggerID, modalRequest)

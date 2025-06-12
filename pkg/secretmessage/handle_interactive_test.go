@@ -45,7 +45,6 @@ var _ = Describe("/interactive", func() {
 		}
 
 		BeforeEach(func() {
-			// httpmock.Activate()
 			gdb, err = gorm.Open(sqlite.Open("file::memory:?cache=shared&dbname=handle_interactive_get"), &gorm.Config{})
 			if err != nil {
 				log.Fatal(err)
@@ -62,7 +61,6 @@ var _ = Describe("/interactive", func() {
 			serverResponse = doHttpRequest(router, strings.NewReader(requestBody.Encode()), map[string]string{"Content-Type": "application/x-www-form-urlencoded"}, "POST", "/interactive")
 		})
 		AfterEach(func() {
-			// httpmock.DeactivateAndReset()
 			db, _ := gdb.DB()
 			db.Close()
 		})

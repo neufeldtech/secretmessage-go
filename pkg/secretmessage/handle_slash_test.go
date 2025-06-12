@@ -151,10 +151,7 @@ var _ = Describe("/secret", func() {
 			}
 			gdb.Create(&secretmessage.Team{ID: teamID, AccessToken: accessToken})
 
-			// registerr a responder for slack.com/api/views.open
-			// to avoid the request being sent to Slack
 			httpmock.RegisterResponder("POST", "https://slack.com/api/views.open", httpmock.NewStringResponder(200, `{"ok": true}`))
-			// httpmock.RegisterResponder("POST", responseURL, httpmock.NewStringResponder(200, `ok`))
 		})
 		It("should POST to views.open", func() {
 			Expect(httpmock.GetTotalCallCount()).To(Equal(1))
