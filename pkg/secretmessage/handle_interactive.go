@@ -26,14 +26,20 @@ func (ctl *PublicController) HandleInteractive(c *gin.Context) {
 	}
 	tx.Context.SetLabel("userHash", hash(i.User.ID))
 	tx.Context.SetLabel("teamHash", hash(i.Team.ID))
-	callbackType := strings.Split(i.CallbackID, ":")[0]
-	switch callbackType {
-	case actions.ReadMessage:
-		CallbackReadSecret(ctl, tx, c, i)
-	case actions.DeleteMessage:
-		CallbackDeleteSecret(ctl, tx, c, i)
+
+	switch i.Type {
+	case slack.InteractionTypeViewSubmission:
+		CallbackViewSubmission(ctl, tx, c, i)
 	default:
-		log.Error("Hit the default case. bad things happened")
-		c.Data(http.StatusInternalServerError, gin.MIMEPlain, nil)
+		callbackType := strings.Split(i.CallbackID, ":")[0]
+		switch callbackType {
+		case actions.ReadMessage:
+			CallbackReadSecret(ctl, tx, c, i)
+		case actions.DeleteMessage:
+			CallbackDeleteSecret(ctl, tx, c, i)
+		default:
+			log.Error("Hit the default case. bad things happened")
+			c.Data(http.StatusInternalServerError, gin.MIMEPlain, nil)
+		}
 	}
 }

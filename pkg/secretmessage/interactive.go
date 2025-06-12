@@ -2,9 +2,11 @@ package secretmessage
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretmessage/actions"
@@ -32,6 +34,14 @@ func CallbackReadSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Conte
 	var errCallback string
 	var deleteOriginal bool
 	switch {
+	case !secret.ExpiresAt.IsZero() && secret.ExpiresAt.Before(time.Now()):
+		getSecretErr = errors.New("Secret expired")
+		tx.Context.SetLabel("errorCode", "secret_expired")
+		errTitle = ":hourglass: Secret expired"
+		errMsg = "This Secret has expired"
+		errCallback = "secret_expired"
+		deleteOriginal = true
+		ctl.db.WithContext(hc).Unscoped().Where("id = ?", hash(secretID)).Delete(Secret{})
 	case getSecretErr == gorm.ErrRecordNotFound:
 		tx.Context.SetLabel("errorCode", "secret_not_found")
 		errTitle = ":question: Secret not found"
@@ -138,4 +148,26 @@ func CallbackDeleteSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Con
 		return
 	}
 	c.Data(http.StatusOK, gin.MIMEJSON, responseBytes)
+}
+
+func CallbackViewSubmission(ctl *PublicController, tx *apm.Transaction, c *gin.Context, i slack.InteractionCallback) {
+	tx.Context.SetLabel("callbackID", i.CallbackID)
+	tx.Context.SetLabel("action", "viewSubmission")
+
+	secretTextVal := i.View.State.Values["secret_text_input"]["secret_text_input"].Value
+	datePickerVal := i.View.State.Values["expiry_date_input"]["expiry_date_input"].SelectedDate
+
+	dateParsed, err := time.Parse("2006-01-02", datePickerVal)
+	if err != nil {
+		log.Errorf("error parsing date: %v, using default expiry date...", err)
+	}
+
+	err = PrepareAndSendSecretEnvelope(ctl, c, tx, secretTextVal, i.Team.ID, i.User.Name, i.View.PrivateMetadata, WithExpiryDate(dateParsed))
+	if err != nil {
+		log.Errorf("error preparing and sending secret envelope: %v", err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Error with the stuffs"})
+		tx.Context.SetLabel("errorCode", "prepare_and_send_secret_error")
+		return
+	}
+	c.Data(http.StatusOK, gin.MIMEPlain, nil)
 }
