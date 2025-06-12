@@ -3,7 +3,7 @@ package secretmessage
 import (
 	"fmt"
 	"net/http"
-	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -16,12 +16,12 @@ import (
 )
 
 // PrepareAndSendSecretEnvelope encrypts the secret, stores in db, and sends the 'envelope' back to slack
-func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) error {
+func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, tx *apm.Transaction, secretText string, TeamID string, UserName string, ResponseUrl string, options ...SecretOption) error {
 	hc := c.Request.Context()
 
 	secretID := shortuuid.New()
 	tx.Context.SetLabel("secretIDHash", hash(secretID))
-	secretEncrypted, encryptErr := encrypt(s.Text, secretID)
+	secretEncrypted, encryptErr := encrypt(secretText, secretID)
 
 	if encryptErr != nil {
 		tx.Context.SetLabel("errorCode", "encrypt_error")
@@ -29,15 +29,10 @@ func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, tx *apm
 		return encryptErr
 	}
 
+	sec := NewSecret(hash(secretID), secretEncrypted, options...)
+	// fmt.Println("sec:", sec.ExpiresAt)
 	// Store the secret
-	secretStoreTime := time.Now()
-	storeErr := ctl.db.WithContext(hc).Create(
-		&Secret{
-			ID:        hash(secretID),
-			ExpiresAt: secretStoreTime.Add(time.Hour * 24 * 7),
-			Value:     secretEncrypted,
-		},
-	).Error
+	storeErr := ctl.db.WithContext(hc).Create(sec).Error
 
 	if storeErr != nil {
 		tx.Context.SetLabel("errorCode", "db_store_error")
@@ -45,17 +40,14 @@ func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, tx *apm
 		return storeErr
 	}
 
-	var footerMsg string
-	if link, found := os.LookupEnv("SURVEY_LINK"); found {
-		footerMsg = fmt.Sprintf("_<%s|Click here to take a 2 minute survey to help out Secret Message>_", link)
-	}
+	footerMsg := fmt.Sprintf("Message expires <!date^%d^{date_pretty}|%s>", sec.ExpiresAt.Unix(), sec.ExpiresAt.Format("2006-01-02 15:04 MST"))
 
 	secretResponse := slack.Message{
 		Msg: slack.Msg{
 			ResponseType: slack.ResponseTypeInChannel,
 			Attachments: []slack.Attachment{{
-				Title:      fmt.Sprintf("%v sent a secret message", s.UserName),
-				Fallback:   fmt.Sprintf("%v sent a secret message", s.UserName),
+				Title:      fmt.Sprintf("%v sent a secret message", UserName),
+				Fallback:   fmt.Sprintf("%v sent a secret message", UserName),
 				CallbackID: fmt.Sprintf("%s:%v", actions.ReadMessage, secretID),
 				Color:      "#6D5692",
 				Footer:     footerMsg,
@@ -71,7 +63,7 @@ func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, tx *apm
 
 	sendSpan := tx.StartSpan("send_message", "client_request", nil)
 	defer sendSpan.End()
-	sendMessageErr := secretslack.SendResponseUrlMessage(hc, s.ResponseURL, secretResponse)
+	sendMessageErr := secretslack.SendResponseUrlMessage(hc, ResponseUrl, secretResponse)
 	if sendMessageErr != nil {
 		sendSpan.Context.SetLabel("errorCode", "send_message_error")
 		log.Errorf("error sending secret to slack: %v", sendMessageErr)
@@ -82,6 +74,63 @@ func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, tx *apm
 
 }
 
+// PromptCreateSecretModal encrypts the secret, stores in db, and sends the 'envelope' back to slack
+func PromptCreateSecretModal(ctl *PublicController, c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) error {
+	// hc := c.Request.Context()
+
+	datePicker := slack.NewDatePickerBlockElement("expiry_date_input")
+	datePicker.InitialDate = time.Now().AddDate(0, 0, 7).Format("2006-01-02")
+
+	textInput := slack.NewPlainTextInputBlockElement(slack.NewTextBlockObject("plain_text", "Enter your secret...", false, false), "secret_text_input")
+	textInput.Multiline = true
+	modalRequest := slack.ModalViewRequest{
+		Type:   slack.VTModal,
+		Title:  slack.NewTextBlockObject("plain_text", "Send a Secret", false, false),
+		Close:  slack.NewTextBlockObject("plain_text", "Cancel", false, false),
+		Submit: slack.NewTextBlockObject("plain_text", "Send", false, false),
+		// CallbackID:      string(actions.ViewSubmission),
+		PrivateMetadata: s.ResponseURL,
+		Blocks: slack.Blocks{
+			BlockSet: []slack.Block{
+				slack.NewInputBlock(
+					"secret_text_input",
+					slack.NewTextBlockObject("plain_text", "Secret Text", false, false),
+					slack.NewTextBlockObject("plain_text", "Max 10,000 characters", false, false),
+					textInput,
+				),
+				slack.NewInputBlock(
+					"expiry_date_input",
+					slack.NewTextBlockObject("plain_text", "Secret Expiry", false, false),
+					slack.NewTextBlockObject("plain_text", "Expiry date is limited to a maximum of 30 days from today", false, false),
+					datePicker,
+				),
+			},
+		},
+	}
+
+	team := Team{}
+
+	getTeamErr := ctl.db.Where(Team{ID: s.TeamID}).First(&team).Error
+	if getTeamErr != nil {
+		log.Errorf("error getting team %v: %v", s.TeamID, getTeamErr)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Error with the stuffs"})
+		tx.Context.SetLabel("errorCode", "team_not_found")
+		return getTeamErr
+	}
+
+	// c.Set("slackClient", secretslack.GetSlackClient(team.AccessToken))
+	api := secretslack.GetSlackClient(team.AccessToken)
+
+	_, err := api.OpenView(s.TriggerID, modalRequest)
+
+	if err != nil {
+		log.Errorf("error opening modal: %v", err)
+		return err
+	}
+
+	return nil
+}
+
 // SlashSecret is the main entrypoint for the slash command /secret
 func SlashSecret(ctl *PublicController, c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) {
 
@@ -90,33 +139,26 @@ func SlashSecret(ctl *PublicController, c *gin.Context, tx *apm.Transaction, s s
 	tx.Context.SetLabel("action", "createSecret")
 	tx.Context.SetLabel("slashCommand", "/secret")
 
-	// Handle if no input was given
-	if s.Text == "" {
-		res, code := secretslack.NewSlackErrorResponse(
-			"Error: secret text is empty",
-			"It looks like you tried to send a secret but forgot to provide the secret's text. You can send a secret like this: `/secret I am scared of heights`",
-			false,
-			"secret_text_empty")
-		tx.Context.SetLabel("errorCode", "text_empty")
-		c.Data(code, gin.MIMEJSON, res)
-		return
+	var err error
+	switch {
+	case strings.TrimSpace(s.Text) == "":
+		// If user provided no text, prompt them with modal
+		err = PromptCreateSecretModal(ctl, c, tx, s)
+	default:
+		// If user provided text inline, do the old behaviour
+		err = PrepareAndSendSecretEnvelope(ctl, c, tx, s.Text, s.TeamID, s.UserName, s.ResponseURL)
 	}
-
-	// Prepare and send message to channel using response_url link
-	err := PrepareAndSendSecretEnvelope(ctl, c, tx, s)
 	if err != nil {
 		log.Error(err)
 		res, code := secretslack.NewSlackErrorResponse(
 			":x: Sorry, an error occurred",
-			"An error occurred attempting to create secret",
+			"An error occurred",
 			false,
-			"prepare_and_send_error")
-		tx.Context.SetLabel("errorCode", fmt.Sprintf("%s_payload_error", actions.ReadMessage))
+			"create_secret_error")
 		c.Data(code, gin.MIMEJSON, res)
 		c.Abort()
 		return
 	}
-
 	// Send empty Ack to Slack if we got here without errors
 	c.Data(http.StatusOK, gin.MIMEPlain, nil)
 

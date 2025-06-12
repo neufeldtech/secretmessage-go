@@ -23,6 +23,19 @@ func SetHTTPClient(hc *http.Client) {
 	httpClient = hc
 }
 
+func GetSlackClient(token string) *slack.Client {
+	mux.Lock()
+	defer mux.Unlock()
+
+	if client, exists := apiClients[token]; exists {
+		return client
+	}
+
+	client := slack.New(token, slack.OptionDebug(true))
+	apiClients[token] = client
+	return client
+}
+
 // SendResponseUrlMessage sends a slack message via a response_url - It does not require a token
 func SendResponseUrlMessage(ctx context.Context, uri string, msg slack.Message) error {
 
