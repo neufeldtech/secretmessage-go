@@ -12,7 +12,7 @@ require (
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.31.1
 	github.com/sirupsen/logrus v1.9.3
-	github.com/slack-go/slack v0.13.1
+	github.com/slack-go/slack v0.17.1
 	github.com/stretchr/testify v1.10.0
 	go.elastic.co/apm v1.15.0
 	go.elastic.co/apm/module/apmgin v1.15.0
@@ -71,7 +71,7 @@ require (
 	github.com/go-playground/validator/v10 v10.26.0 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/gorilla/websocket v1.4.2 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgconn v1.14.3 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect
