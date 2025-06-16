@@ -7,7 +7,7 @@ toolchain go1.23.10
 
 require (
 	github.com/gin-gonic/gin v1.10.1
-	github.com/jarcoal/httpmock v1.3.1
+	github.com/jarcoal/httpmock v1.4.0
 	github.com/lithammer/shortuuid v3.0.0+incompatible
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.31.1
