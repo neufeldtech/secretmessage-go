@@ -10,7 +10,7 @@ require (
 	github.com/jarcoal/httpmock v1.3.1
 	github.com/lithammer/shortuuid v3.0.0+incompatible
 	github.com/onsi/ginkgo v1.16.5
-	github.com/onsi/gomega v1.31.1
+	github.com/onsi/gomega v1.37.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/slack-go/slack v0.13.1
 	github.com/stretchr/testify v1.10.0
