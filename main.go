@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"time"
 
 	"strconv"
 
@@ -12,12 +10,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretmessage"
-	"github.com/neufeldtech/secretmessage-go/pkg/secretslack"
 	_ "go.elastic.co/apm/module/apmgormv2"
 	postgres "go.elastic.co/apm/module/apmgormv2/driver/postgres"
 	"go.uber.org/zap"
 
-	"go.elastic.co/apm/module/apmhttp"
 	"golang.org/x/oauth2"
 	"gorm.io/gorm"
 )
@@ -78,12 +74,7 @@ func main() {
 			logger.Error("error shutting down trace provider", zap.Error(err))
 		}
 	}()
-	// Setup custom HTTP Client for calling Slack
-	secretslack.SetHTTPClient(apmhttp.WrapClient(
-		&http.Client{
-			Timeout: time.Second * 5,
-		},
-	))
+
 	for k, v := range configMap {
 		if v == "" {
 			logger.Fatal("error initializing config", zap.String("key", k), zap.String("value", v))

@@ -10,7 +10,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretmessage/actions"
-	"github.com/neufeldtech/secretmessage-go/pkg/secretslack"
 	"github.com/slack-go/slack"
 	"go.elastic.co/apm"
 	"go.uber.org/zap"
@@ -57,7 +56,7 @@ func CallbackReadSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Conte
 	}
 	if getSecretErr != nil {
 		ctl.logger.Error("error retrieving secret from store", zap.Error(getSecretErr), zap.String("secretID", secretID))
-		res, code := secretslack.NewSlackErrorResponse(
+		res, code := ctl.slackService.NewSlackErrorResponse(
 			errTitle,
 			errMsg,
 			deleteOriginal,
@@ -77,7 +76,7 @@ func CallbackReadSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Conte
 	if decryptionErr != nil {
 		ctl.logger.Error("error decrypting secret", zap.Error(decryptionErr), zap.String("secretID", secretID))
 		tx.Context.SetLabel("errorCode", "decrypt_error")
-		res, code := secretslack.NewSlackErrorResponse(
+		res, code := ctl.slackService.NewSlackErrorResponse(
 			":x: Sorry, an error occurred",
 			"An error occurred attempting to retrieve secret",
 			false,
@@ -110,7 +109,7 @@ func CallbackReadSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Conte
 	responseBytes, err := json.Marshal(response)
 	if err != nil {
 		ctl.logger.Error("error marshalling response", zap.Error(err), zap.String("secretID", secretID))
-		res, code := secretslack.NewSlackErrorResponse(
+		res, code := ctl.slackService.NewSlackErrorResponse(
 			":x: Sorry, an error occurred",
 			"An error occurred attempting to retrieve secret",
 			false,
@@ -138,7 +137,7 @@ func CallbackDeleteSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Con
 	responseBytes, err := json.Marshal(response)
 	if err != nil {
 		ctl.logger.Error("error marshalling response for delete secret", zap.Error(err), zap.String("secretID", secretID))
-		res, code := secretslack.NewSlackErrorResponse(
+		res, code := ctl.slackService.NewSlackErrorResponse(
 			":x: Sorry, an error occurred",
 			"An error occurred attempting to delete secret",
 			false,

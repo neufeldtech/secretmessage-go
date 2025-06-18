@@ -8,35 +8,59 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/slack-go/slack"
+	"go.uber.org/zap"
 )
 
-var (
-	apiClients = make(map[string]*slack.Client)
+type SlackService struct {
+	apiClients map[string]*slack.Client
 	mux        sync.Mutex
-	httpClient = http.DefaultClient
-)
-
-func SetHTTPClient(hc *http.Client) {
-	httpClient = hc
+	httpClient *http.Client
+	logger     *zap.Logger
 }
 
-func GetSlackClient(token string) *slack.Client {
-	mux.Lock()
-	defer mux.Unlock()
+func NewSlackService() *SlackService {
+	return &SlackService{
+		apiClients: make(map[string]*slack.Client),
+		mux:        sync.Mutex{},
+		logger:     zap.Must(zap.NewProduction()),
+		httpClient: &http.Client{
+			Timeout: 10 * time.Second,
+		},
+	}
+}
 
-	if client, exists := apiClients[token]; exists {
+func (srv *SlackService) WithHTTPClient(hc *http.Client) *SlackService {
+	srv.httpClient = hc
+	return srv
+}
+
+func (srv *SlackService) WithLogger(logger *zap.Logger) *SlackService {
+	if logger == nil {
+		logger = zap.Must(zap.NewProduction())
+		srv.logger.Warn("Logger is nil, using default production logger")
+	}
+	srv.logger = logger
+	return srv
+}
+
+func (srv *SlackService) GetSlackClient(token string) *slack.Client {
+	srv.mux.Lock()
+	defer srv.mux.Unlock()
+
+	if client, exists := srv.apiClients[token]; exists {
 		return client
 	}
 
 	client := slack.New(token, slack.OptionDebug(true))
-	apiClients[token] = client
+	srv.apiClients[token] = client
 	return client
 }
 
 // SendResponseUrlMessage sends a slack message via a response_url - It does not require a token
-func SendResponseUrlMessage(ctx context.Context, uri string, msg slack.Message) error {
+func (srv *SlackService) SendResponseUrlMessage(ctx context.Context, uri string, msg slack.Message) error {
 
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
@@ -48,7 +72,7 @@ func SendResponseUrlMessage(ctx context.Context, uri string, msg slack.Message) 
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := httpClient.Do(req)
+	resp, err := srv.httpClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -61,7 +85,7 @@ func SendResponseUrlMessage(ctx context.Context, uri string, msg slack.Message) 
 }
 
 // NewSlackErrorResponse Constructs a json response for an ephemeral message back to a user
-func NewSlackErrorResponse(title string, text string, deleteOriginal bool, callbackID string) ([]byte, int) {
+func (srv *SlackService) NewSlackErrorResponse(title string, text string, deleteOriginal bool, callbackID string) ([]byte, int) {
 	responseCode := http.StatusOK
 	response := slack.Message{
 		Msg: slack.Msg{
@@ -78,7 +102,7 @@ func NewSlackErrorResponse(title string, text string, deleteOriginal bool, callb
 	}
 	responseBytes, err := json.Marshal(response)
 	if err != nil {
-		fmt.Printf("error marshalling json: %v", err)
+		srv.logger.Error("error marshalling json for slack error response", zap.Error(err), zap.String("callbackID", callbackID))
 		responseCode = http.StatusInternalServerError
 	}
 	return responseBytes, responseCode

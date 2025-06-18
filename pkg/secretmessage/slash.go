@@ -9,7 +9,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lithammer/shortuuid"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretmessage/actions"
-	"github.com/neufeldtech/secretmessage-go/pkg/secretslack"
 	"github.com/slack-go/slack"
 	"go.elastic.co/apm"
 	"go.uber.org/zap"
@@ -62,7 +61,7 @@ func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, tx *apm
 
 	sendSpan := tx.StartSpan("send_message", "client_request", nil)
 	defer sendSpan.End()
-	sendMessageErr := secretslack.SendResponseUrlMessage(hc, ResponseUrl, secretResponse)
+	sendMessageErr := ctl.slackService.SendResponseUrlMessage(hc, ResponseUrl, secretResponse)
 	if sendMessageErr != nil {
 		sendSpan.Context.SetLabel("errorCode", "send_message_error")
 		ctl.logger.Error("error sending secret to slack", zap.Error(sendMessageErr), zap.String("secretID", secretID))
@@ -115,7 +114,7 @@ func PromptCreateSecretModal(ctl *PublicController, c *gin.Context, tx *apm.Tran
 		return getTeamErr
 	}
 
-	api := secretslack.GetSlackClient(team.AccessToken)
+	api := ctl.slackService.GetSlackClient(team.AccessToken)
 
 	_, err := api.OpenView(s.TriggerID, modalRequest)
 
@@ -146,7 +145,7 @@ func SlashSecret(ctl *PublicController, c *gin.Context, tx *apm.Transaction, s s
 	}
 	if err != nil {
 		ctl.logger.Error("error processing slash command", zap.Error(err))
-		res, code := secretslack.NewSlackErrorResponse(
+		res, code := ctl.slackService.NewSlackErrorResponse(
 			":x: Sorry, an error occurred",
 			"An error occurred",
 			false,
@@ -181,7 +180,7 @@ func SendReinstallMessage(ctl *PublicController, c *gin.Context, tx *apm.Transac
 			Text:         fmt.Sprintf(":wave: Hey, we're working hard updating Secret Message. In order to keep using the app, <%v/auth/slack|please click here to reinstall>", ctl.config.AppURL),
 		},
 	}
-	sendMessageEphemeralErr := secretslack.SendResponseUrlMessage(c.Request.Context(), s.ResponseURL, responseEphemeral)
+	sendMessageEphemeralErr := ctl.slackService.SendResponseUrlMessage(c.Request.Context(), s.ResponseURL, responseEphemeral)
 	if sendMessageEphemeralErr != nil {
 		ctl.logger.Error("error sending ephemeral reinstall message", zap.Error(sendMessageEphemeralErr), zap.String("teamID", s.TeamID))
 	}
