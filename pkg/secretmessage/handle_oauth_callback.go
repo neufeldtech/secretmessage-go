@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
-	log "github.com/sirupsen/logrus"
 	"go.elastic.co/apm"
+	"go.uber.org/zap"
 	"golang.org/x/net/context"
 )
 
@@ -21,14 +21,14 @@ func (ctl *PublicController) HandleOauthCallback(c *gin.Context) {
 	stateQuery := c.Query("state")
 	stateCookie, err := c.Cookie("state")
 	if err != nil {
-		log.Errorf("error retrieving state cookie from request: %v", err)
+		ctl.logger.Error("error retrieving state cookie from request", zap.Error(err), zap.String("stateQuery", stateQuery))
 		apm.CaptureError(hc, err).Send()
 		c.Redirect(302, "https://secretmessage.xyz/error")
 		tx.Context.SetLabel("errorCode", "state_cookie_parse_error")
 		return
 	}
 	if stateCookie != stateQuery {
-		log.Error("error validating state cookie with state query param")
+		ctl.logger.Error("error validating state cookie with state query param", zap.String("stateCookie", stateCookie), zap.String("stateQuery", stateQuery))
 		apm.CaptureError(hc, fmt.Errorf("state cookie was invalid")).Send()
 		c.Redirect(302, "https://secretmessage.xyz/error")
 		tx.Context.SetLabel("errorCode", "state_cookie_invalid")
@@ -36,7 +36,7 @@ func (ctl *PublicController) HandleOauthCallback(c *gin.Context) {
 	}
 	token, err := ctl.config.OauthConfig.Exchange(context.Background(), c.Query("code"))
 	if err != nil {
-		log.Errorf("error retrieving initial oauth token: %v", err)
+		ctl.logger.Error("error retrieving initial oauth token", zap.Error(err))
 		apm.CaptureError(hc, err).Send()
 		c.Redirect(302, "https://secretmessage.xyz/error")
 		tx.Context.SetLabel("errorCode", "oauth_token_exchange_error")
@@ -44,11 +44,11 @@ func (ctl *PublicController) HandleOauthCallback(c *gin.Context) {
 	}
 	r := token.Extra("raw")
 	b, _ := json.Marshal(r)
-	fmt.Printf("%+v", string(b))
+	ctl.logger.Sugar().Infof("%+v", string(b))
 
 	teamMap, ok := token.Extra("team").(map[string]interface{})
 	if !ok {
-		log.Errorf("error unmarshalling team from token: %v", token)
+		ctl.logger.Error("error unmarshalling team from token", zap.Any("token", token))
 		apm.CaptureError(hc, fmt.Errorf("could not unmarshal team from token: %v", token)).Send()
 		c.Redirect(302, "https://secretmessage.xyz/error")
 		tx.Context.SetLabel("errorCode", "token_team_unmarshal_error")
@@ -57,7 +57,7 @@ func (ctl *PublicController) HandleOauthCallback(c *gin.Context) {
 
 	teamID, ok := teamMap["id"].(string)
 	if !ok || teamID == "" {
-		log.Errorf("error unmarshalling teamID from token: %v", token)
+		ctl.logger.Error("error unmarshalling teamID from token", zap.Any("token", token))
 		c.Redirect(302, "https://secretmessage.xyz/error")
 		tx.Context.SetLabel("errorCode", "token_team_unmarshal_error")
 		return
@@ -65,7 +65,7 @@ func (ctl *PublicController) HandleOauthCallback(c *gin.Context) {
 
 	teamName, ok := teamMap["name"].(string)
 	if !ok || teamName == "" {
-		log.Errorf("error unmarshalling teamName from token: %v", token)
+		ctl.logger.Error("error unmarshalling teamName from token", zap.Any("token", token))
 		c.Redirect(302, "https://secretmessage.xyz/error")
 		tx.Context.SetLabel("errorCode", "token_team_unmarshal_error")
 		return
@@ -73,7 +73,7 @@ func (ctl *PublicController) HandleOauthCallback(c *gin.Context) {
 
 	scope, ok := token.Extra("scope").(string)
 	if !ok || scope == "" {
-		log.Errorf("error unmarshalling scope from token: %v", token)
+		ctl.logger.Error("error unmarshalling scope from token", zap.Any("token", token))
 		c.Redirect(302, "https://secretmessage.xyz/error")
 		tx.Context.SetLabel("errorCode", "token_team_unmarshal_error")
 		return
@@ -83,14 +83,12 @@ func (ctl *PublicController) HandleOauthCallback(c *gin.Context) {
 	updateTeamErr := ctl.db.
 		WithContext(hc).
 		Where(&team, Team{ID: teamID}).
-		// Attrs() is for setting fields on new records
 		Attrs(Team{Paid: sql.NullBool{Bool: false, Valid: true}}).
-		// Assign() is for updating fields on all records
 		Assign(Team{AccessToken: token.AccessToken, Scope: scope, Name: teamName}).
 		FirstOrCreate(&team).Error
 
 	if updateTeamErr != nil {
-		log.Errorf("error updating team in db: %v", err)
+		ctl.logger.Error("error updating team in db", zap.Error(updateTeamErr))
 		c.Redirect(302, "https://secretmessage.xyz/error")
 		tx.Context.SetLabel("errorCode", "team_update_error")
 		return

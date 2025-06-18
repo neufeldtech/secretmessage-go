@@ -4,9 +4,9 @@ import (
 	"golang.org/x/oauth2"
 )
 
-var (
-	config Config
-)
+// var (
+// 	config Config
+// )
 
 type Config struct {
 	SkipSignatureValidation bool

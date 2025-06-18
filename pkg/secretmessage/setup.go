@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 func callHealth(url string) error {
@@ -21,12 +21,12 @@ func callHealth(url string) error {
 	return nil
 }
 
-func StayAwake(config Config) {
+func (ctl *PublicController) StayAwake() {
 	for {
 		time.Sleep(5 * time.Minute)
-		err := callHealth(config.AppURL)
+		err := callHealth(ctl.config.AppURL)
 		if err != nil {
-			log.Error(err)
+			ctl.logger.Error("Error calling health endpoint", zap.Error(err))
 		}
 	}
 }

@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"sync"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
 )
 
@@ -79,7 +78,7 @@ func NewSlackErrorResponse(title string, text string, deleteOriginal bool, callb
 	}
 	responseBytes, err := json.Marshal(response)
 	if err != nil {
-		log.Errorf("error marshalling json: %v", err)
+		fmt.Printf("error marshalling json: %v", err)
 		responseCode = http.StatusInternalServerError
 	}
 	return responseBytes, responseCode

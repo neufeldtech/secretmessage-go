@@ -10,9 +10,9 @@ import (
 	"github.com/lithammer/shortuuid"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretmessage/actions"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretslack"
-	log "github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
 	"go.elastic.co/apm"
+	"go.uber.org/zap"
 )
 
 // PrepareAndSendSecretEnvelope encrypts the secret, stores in db, and sends the 'envelope' back to slack
@@ -25,7 +25,7 @@ func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, tx *apm
 
 	if encryptErr != nil {
 		tx.Context.SetLabel("errorCode", "encrypt_error")
-		log.Errorf("error storing secretID %v: %v", secretID, encryptErr)
+		ctl.logger.Error("error encrypting secret", zap.Error(encryptErr), zap.String("secretID", secretID))
 		return encryptErr
 	}
 
@@ -35,7 +35,7 @@ func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, tx *apm
 
 	if storeErr != nil {
 		tx.Context.SetLabel("errorCode", "db_store_error")
-		log.Errorf("error storing secretID %v: %v", secretID, storeErr)
+		ctl.logger.Error("error storing secret in database", zap.Error(storeErr), zap.String("secretID", secretID))
 		return storeErr
 	}
 
@@ -65,7 +65,7 @@ func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, tx *apm
 	sendMessageErr := secretslack.SendResponseUrlMessage(hc, ResponseUrl, secretResponse)
 	if sendMessageErr != nil {
 		sendSpan.Context.SetLabel("errorCode", "send_message_error")
-		log.Errorf("error sending secret to slack: %v", sendMessageErr)
+		ctl.logger.Error("error sending secret to slack", zap.Error(sendMessageErr), zap.String("secretID", secretID))
 		return sendMessageErr
 	}
 
@@ -82,10 +82,10 @@ func PromptCreateSecretModal(ctl *PublicController, c *gin.Context, tx *apm.Tran
 	textInput := slack.NewPlainTextInputBlockElement(slack.NewTextBlockObject("plain_text", "Enter your secret...", false, false), "secret_text_input")
 	textInput.Multiline = true
 	modalRequest := slack.ModalViewRequest{
-		Type:   slack.VTModal,
-		Title:  slack.NewTextBlockObject("plain_text", "Send a Secret", false, false),
-		Close:  slack.NewTextBlockObject("plain_text", "Cancel", false, false),
-		Submit: slack.NewTextBlockObject("plain_text", "Send", false, false),
+		Type:            slack.VTModal,
+		Title:           slack.NewTextBlockObject("plain_text", "Send a Secret", false, false),
+		Close:           slack.NewTextBlockObject("plain_text", "Cancel", false, false),
+		Submit:          slack.NewTextBlockObject("plain_text", "Send", false, false),
 		PrivateMetadata: s.ResponseURL,
 		Blocks: slack.Blocks{
 			BlockSet: []slack.Block{
@@ -109,7 +109,7 @@ func PromptCreateSecretModal(ctl *PublicController, c *gin.Context, tx *apm.Tran
 
 	getTeamErr := ctl.db.Where(Team{ID: s.TeamID}).First(&team).Error
 	if getTeamErr != nil {
-		log.Errorf("error getting team %v: %v", s.TeamID, getTeamErr)
+		ctl.logger.Error("error getting team for slash command", zap.Error(getTeamErr), zap.String("teamID", s.TeamID))
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Error with the stuffs"})
 		tx.Context.SetLabel("errorCode", "team_not_found")
 		return getTeamErr
@@ -120,7 +120,7 @@ func PromptCreateSecretModal(ctl *PublicController, c *gin.Context, tx *apm.Tran
 	_, err := api.OpenView(s.TriggerID, modalRequest)
 
 	if err != nil {
-		log.Errorf("error opening modal: %v", err)
+		ctl.logger.Error("error opening modal for slash command", zap.Error(err), zap.String("teamID", s.TeamID), zap.String("triggerID", s.TriggerID))
 		return err
 	}
 
@@ -145,7 +145,7 @@ func SlashSecret(ctl *PublicController, c *gin.Context, tx *apm.Transaction, s s
 		err = PrepareAndSendSecretEnvelope(ctl, c, tx, s.Text, s.TeamID, s.UserName, s.ResponseURL)
 	}
 	if err != nil {
-		log.Error(err)
+		ctl.logger.Error("error processing slash command", zap.Error(err))
 		res, code := secretslack.NewSlackErrorResponse(
 			":x: Sorry, an error occurred",
 			"An error occurred",
@@ -161,8 +161,6 @@ func SlashSecret(ctl *PublicController, c *gin.Context, tx *apm.Transaction, s s
 	if AppReinstallNeeded(ctl, c, tx, s) {
 		SendReinstallMessage(ctl, c, tx, s)
 	}
-
-	return
 }
 
 func AppReinstallNeeded(ctl *PublicController, c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) bool {
@@ -170,7 +168,7 @@ func AppReinstallNeeded(ctl *PublicController, c *gin.Context, tx *apm.Transacti
 	hc := c.Request.Context()
 	err := ctl.db.WithContext(hc).Where("id = ?", s.TeamID).First(&team).Error
 	if err != nil || team.AccessToken == "" {
-		log.Warnf("%v: could not find access_token for team %v in store", err, s.TeamID)
+		ctl.logger.Warn("App reinstall needed", zap.String("teamID", s.TeamID), zap.Error(err))
 		return true
 	}
 	return false
@@ -185,6 +183,6 @@ func SendReinstallMessage(ctl *PublicController, c *gin.Context, tx *apm.Transac
 	}
 	sendMessageEphemeralErr := secretslack.SendResponseUrlMessage(c.Request.Context(), s.ResponseURL, responseEphemeral)
 	if sendMessageEphemeralErr != nil {
-		log.Errorf("error sending ephemeral reinstall message: %v", sendMessageEphemeralErr)
+		ctl.logger.Error("error sending ephemeral reinstall message", zap.Error(sendMessageEphemeralErr), zap.String("teamID", s.TeamID))
 	}
 }

@@ -10,11 +10,12 @@ import (
 
 	"os"
 
+	"github.com/gin-gonic/gin"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretmessage"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretslack"
-	log "github.com/sirupsen/logrus"
 	_ "go.elastic.co/apm/module/apmgormv2"
 	postgres "go.elastic.co/apm/module/apmgormv2/driver/postgres"
+	"go.uber.org/zap"
 
 	"go.elastic.co/apm/module/apmhttp"
 	"golang.org/x/oauth2"
@@ -56,13 +57,25 @@ func resolvePort() int64 {
 }
 
 func main() {
+
+	var logger *zap.Logger
+	switch {
+	case os.Getenv("APP_ENV") == "development":
+		logger = zap.Must(zap.NewDevelopment())
+		gin.SetMode(gin.DebugMode)
+	default:
+		gin.SetMode(gin.ReleaseMode)
+		logger = zap.Must(zap.NewProduction())
+	}
+
 	tp, err := secretmessage.InitTracer(secretmessage.ServiceName)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err.Error())
 	}
 	defer func() {
+		logger.Sync()
 		if err := tp.Shutdown(context.Background()); err != nil {
-			log.Printf("Error shutting down tracer provider: %v", err)
+			logger.Error("error shutting down trace provider", zap.Error(err))
 		}
 	}()
 	// Setup custom HTTP Client for calling Slack
@@ -73,7 +86,7 @@ func main() {
 	))
 	for k, v := range configMap {
 		if v == "" {
-			log.Fatalf("error initializaing config. key %v was not set", k)
+			logger.Fatal("error initializing config", zap.String("key", k), zap.String("value", v))
 		}
 	}
 
@@ -98,7 +111,7 @@ func main() {
 
 	db, err := gorm.Open(postgres.Open(conf.DatabaseURL), &gorm.Config{})
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal("error connecting to database", zap.Error(err))
 	}
 	d, _ := db.DB()
 	d.SetMaxIdleConns(10)
@@ -110,10 +123,12 @@ func main() {
 	controller := secretmessage.NewController(
 		conf,
 		db,
+		logger,
 	)
 
-	go secretmessage.StayAwake(conf)
+	go controller.StayAwake()
 	r := controller.ConfigureRoutes()
-	log.Infof("Booted and listening on port %v", conf.Port)
+	logger.Sugar().Infof("Booted and listening on port %v", conf.Port)
+
 	r.Run(fmt.Sprintf("0.0.0.0:%v", conf.Port))
 }

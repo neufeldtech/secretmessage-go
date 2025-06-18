@@ -7,9 +7,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretmessage/actions"
-	log "github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
 	"go.elastic.co/apm"
+	"go.uber.org/zap"
 )
 
 func (ctl *PublicController) HandleInteractive(c *gin.Context) {
@@ -19,7 +19,7 @@ func (ctl *PublicController) HandleInteractive(c *gin.Context) {
 	payload := c.PostForm("payload")
 	err = json.Unmarshal([]byte(payload), &i)
 	if err != nil {
-		log.Error(err)
+		ctl.logger.Error("error parsing interaction payload", zap.Error(err), zap.String("payload", payload))
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Error with the stuffs"})
 		tx.Context.SetLabel("errorCode", "interaction_payload_parse_error")
 		return
@@ -38,7 +38,7 @@ func (ctl *PublicController) HandleInteractive(c *gin.Context) {
 		case actions.DeleteMessage:
 			CallbackDeleteSecret(ctl, tx, c, i)
 		default:
-			log.Error("Hit the default case. bad things happened")
+			ctl.logger.Error("unknown interaction type", zap.String("type", string(i.Type)), zap.String("callbackID", i.CallbackID))
 			c.Data(http.StatusInternalServerError, gin.MIMEPlain, nil)
 		}
 	}
