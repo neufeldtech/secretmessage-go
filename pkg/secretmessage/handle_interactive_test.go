@@ -54,6 +54,7 @@ var _ = Describe("/interactive", func() {
 			ctl = secretmessage.NewController(
 				secretmessage.Config{SkipSignatureValidation: true},
 				gdb,
+				nil,
 			)
 		})
 		JustBeforeEach(func() {
@@ -157,6 +158,7 @@ var _ = Describe("/interactive", func() {
 			ctl = secretmessage.NewController(
 				secretmessage.Config{SkipSignatureValidation: true},
 				gdb,
+				nil,
 			)
 		})
 		JustBeforeEach(func() {
@@ -227,6 +229,7 @@ var _ = Describe("/interactive", func() {
 			ctl = secretmessage.NewController(
 				secretmessage.Config{SkipSignatureValidation: true},
 				gdb,
+				nil,
 			)
 
 		})

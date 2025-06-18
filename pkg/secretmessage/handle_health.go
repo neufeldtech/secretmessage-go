@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 func (ctl *PublicController) HandleHealth(c *gin.Context) {
@@ -15,14 +15,14 @@ func (ctl *PublicController) HandleHealth(c *gin.Context) {
 	}
 	db, err := ctl.db.DB()
 	if err != nil {
-		log.Error(err)
+		ctl.logger.Error("error retrieving database connection", zap.Error(err))
 		c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"status": "DOWN", "sha": version})
 		return
 	}
 
 	err = db.PingContext(c.Request.Context())
 	if err != nil {
-		log.Error(err)
+		ctl.logger.Error("error pinging database", zap.Error(err))
 		c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"status": "DOWN", "sha": version})
 		return
 	}
