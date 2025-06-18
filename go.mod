@@ -24,7 +24,7 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.36.0
 	go.opentelemetry.io/otel/sdk v1.36.0
 	golang.org/x/net v0.41.0
-	golang.org/x/oauth2 v0.27.0
+	golang.org/x/oauth2 v0.30.0
 	gorm.io/driver/sqlite v1.5.5
 	gorm.io/gorm v1.30.0
 )
