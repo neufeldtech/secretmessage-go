@@ -4,9 +4,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	log "github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
 	"go.elastic.co/apm"
+	"go.uber.org/zap"
 )
 
 func (ctl *PublicController) HandleSlash(c *gin.Context) {
@@ -14,7 +14,7 @@ func (ctl *PublicController) HandleSlash(c *gin.Context) {
 	tx := apm.TransactionFromContext(hc)
 	s, err := slack.SlashCommandParse(c.Request)
 	if err != nil {
-		log.Errorf("error parsing slash command: %v", err)
+		ctl.logger.Error("error parsing slash command", zap.Error(err), zap.String("command", c.Request.URL.Path))
 		apm.CaptureError(hc, err).Send()
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"status": "Bad Request"})
 		tx.Context.SetLabel("errorCode", "slash_payload_parse_error")

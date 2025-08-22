@@ -10,10 +10,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretmessage/actions"
-	"github.com/neufeldtech/secretmessage-go/pkg/secretslack"
-	log "github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
 	"go.elastic.co/apm"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -56,8 +55,8 @@ func CallbackReadSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Conte
 		deleteOriginal = false
 	}
 	if getSecretErr != nil {
-		log.Errorf("error retrieving secret from store: %v", getSecretErr)
-		res, code := secretslack.NewSlackErrorResponse(
+		ctl.logger.Error("error retrieving secret from store", zap.Error(getSecretErr), zap.String("secretID", secretID))
+		res, code := ctl.slackService.NewSlackErrorResponse(
 			errTitle,
 			errMsg,
 			deleteOriginal,
@@ -70,14 +69,14 @@ func CallbackReadSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Conte
 	var secretDecrypted string
 	var decryptionErr error
 	if strings.Contains(secret.Value, ":") {
-		secretDecrypted, decryptionErr = decryptIV(secret.Value, config.LegacyCryptoKey)
+		secretDecrypted, decryptionErr = decryptIV(secret.Value, ctl.config.LegacyCryptoKey)
 	} else {
 		secretDecrypted, decryptionErr = decrypt(secret.Value, secretID)
 	}
 	if decryptionErr != nil {
-		log.Errorf("error decrypting secretID %v: %v", secretID, decryptionErr)
+		ctl.logger.Error("error decrypting secret", zap.Error(decryptionErr), zap.String("secretID", secretID))
 		tx.Context.SetLabel("errorCode", "decrypt_error")
-		res, code := secretslack.NewSlackErrorResponse(
+		res, code := ctl.slackService.NewSlackErrorResponse(
 			":x: Sorry, an error occurred",
 			"An error occurred attempting to retrieve secret",
 			false,
@@ -109,8 +108,8 @@ func CallbackReadSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Conte
 	}
 	responseBytes, err := json.Marshal(response)
 	if err != nil {
-		log.Errorf("error marshalling response: %v", err)
-		res, code := secretslack.NewSlackErrorResponse(
+		ctl.logger.Error("error marshalling response", zap.Error(err), zap.String("secretID", secretID))
+		res, code := ctl.slackService.NewSlackErrorResponse(
 			":x: Sorry, an error occurred",
 			"An error occurred attempting to retrieve secret",
 			false,
@@ -121,9 +120,8 @@ func CallbackReadSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Conte
 	c.Data(http.StatusOK, gin.MIMEJSON, responseBytes)
 
 	if delSecretErr := ctl.db.WithContext(hc).Unscoped().Where("id = ?", hash(secretID)).Delete(Secret{}).Error; delSecretErr != nil {
-		log.Error(delSecretErr)
+		ctl.logger.Error("error deleting secret after retrieval", zap.Error(delSecretErr), zap.String("secretID", secretID))
 	}
-	return
 }
 
 func CallbackDeleteSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Context, i slack.InteractionCallback) {
@@ -138,8 +136,8 @@ func CallbackDeleteSecret(ctl *PublicController, tx *apm.Transaction, c *gin.Con
 	}
 	responseBytes, err := json.Marshal(response)
 	if err != nil {
-		log.Errorf("error marshalling response: %v", err)
-		res, code := secretslack.NewSlackErrorResponse(
+		ctl.logger.Error("error marshalling response for delete secret", zap.Error(err), zap.String("secretID", secretID))
+		res, code := ctl.slackService.NewSlackErrorResponse(
 			":x: Sorry, an error occurred",
 			"An error occurred attempting to delete secret",
 			false,
@@ -159,12 +157,12 @@ func CallbackViewSubmission(ctl *PublicController, tx *apm.Transaction, c *gin.C
 
 	dateParsed, err := time.Parse("2006-01-02", datePickerVal)
 	if err != nil {
-		log.Errorf("error parsing date: %v, using default expiry date...", err)
+		ctl.logger.Error("error parsing date from view submission", zap.Error(err), zap.String("datePickerVal", datePickerVal))
 	}
 
 	err = PrepareAndSendSecretEnvelope(ctl, c, tx, secretTextVal, i.Team.ID, i.User.Name, i.View.PrivateMetadata, WithExpiryDate(dateParsed))
 	if err != nil {
-		log.Errorf("error preparing and sending secret envelope: %v", err)
+		ctl.logger.Error("error preparing and sending secret envelope", zap.Error(err), zap.String("secretTextVal", secretTextVal), zap.String("teamID", i.Team.ID), zap.String("userName", i.User.Name), zap.String("privateMetadata", i.View.PrivateMetadata))
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Error with the stuffs"})
 		tx.Context.SetLabel("errorCode", "prepare_and_send_secret_error")
 		return

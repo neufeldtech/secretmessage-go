@@ -51,6 +51,7 @@ var _ = Describe("/auth/slack/callback", func() {
 				},
 			},
 			gdb,
+			nil,
 		)
 		callbackURI = "/auth/slack/callback"
 		// error=access_denied&state=7wos7tXr2zj9t7oU3mXGK7

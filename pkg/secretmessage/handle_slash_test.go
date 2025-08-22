@@ -57,6 +57,7 @@ var _ = Describe("/secret", func() {
 		ctl = secretmessage.NewController(
 			secretmessage.Config{SkipSignatureValidation: true},
 			gdb,
+			nil,
 		)
 	})
 	JustBeforeEach(func() {

@@ -12,6 +12,7 @@ func (ctl *PublicController) HandleHealth(c *gin.Context) {
 	if !ok {
 		version = "dev"
 	}
+
 	// Neon removed their free tier. It now costs me money to keep the database up, so let it sleep to save costs.
 
 	// db, err := ctl.db.DB()
