@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	log "github.com/sirupsen/logrus"
 )
 
 func (ctl *PublicController) HandleHealth(c *gin.Context) {
@@ -13,18 +12,20 @@ func (ctl *PublicController) HandleHealth(c *gin.Context) {
 	if !ok {
 		version = "dev"
 	}
-	db, err := ctl.db.DB()
-	if err != nil {
-		log.Error(err)
-		c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"status": "DOWN", "sha": version})
-		return
-	}
+	// Neon removed their free tier. It now costs me money to keep the database up, so let it sleep to save costs.
 
-	err = db.PingContext(c.Request.Context())
-	if err != nil {
-		log.Error(err)
-		c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"status": "DOWN", "sha": version})
-		return
-	}
+	// db, err := ctl.db.DB()
+	// if err != nil {
+	// 	log.Error(err)
+	// 	c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"status": "DOWN", "sha": version})
+	// 	return
+	// }
+
+	// err = db.PingContext(c.Request.Context())
+	// if err != nil {
+	// 	log.Error(err)
+	// 	c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"status": "DOWN", "sha": version})
+	// 	return
+	// }
 	c.JSON(http.StatusOK, gin.H{"status": "UP", "sha": version})
 }
