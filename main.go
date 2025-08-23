@@ -18,6 +18,16 @@ import (
 	"gorm.io/gorm"
 )
 
+func init() {
+
+	if pgUri, exists := os.LookupEnv("POSTGRES_URI"); exists && pgUri != "" {
+		fmt.Println("WARN: Using POSTGRES_URI environment variable to override DATABASE_URL")
+		os.Setenv("DATABASE_URL", pgUri)
+		fmt.Println("Using DATABASE_URL:", os.Getenv("DATABASE_URL"))
+	}
+
+}
+
 var (
 	defaultPort                 int64 = 8080
 	slackSigningSecretConfigKey       = "slackSigningSecret"
@@ -35,7 +45,7 @@ var (
 		slackCallbackURLConfigKey:   os.Getenv("SLACK_CALLBACK_URL"),
 		legacyCryptoKeyConfigKey:    os.Getenv("CRYPTO_KEY"),
 		appURLConfigKey:             os.Getenv("APP_URL"),
-		databaseURL:                 os.Getenv("DATABASE_URL"),
+		databaseURL:                 os.Getenv("DATABASE_URL"), // if POSTGRES_URI is set, it will override DATABASE_URL
 	}
 )
 
