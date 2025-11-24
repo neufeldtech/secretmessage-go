@@ -11,7 +11,7 @@ require (
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.38.2
 	github.com/slack-go/slack v0.17.3
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	go.elastic.co/apm v1.15.0
 	go.elastic.co/apm/module/apmgin v1.15.0
 	go.elastic.co/apm/module/apmgormv2 v1.15.0
