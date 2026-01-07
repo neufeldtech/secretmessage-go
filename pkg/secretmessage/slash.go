@@ -6,8 +6,9 @@ import (
 	"strings"
 	"time"
 
+	"crypto/rand"
+
 	"github.com/gin-gonic/gin"
-	"github.com/lithammer/shortuuid"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretmessage/actions"
 	"github.com/slack-go/slack"
 	"go.uber.org/zap"
@@ -17,7 +18,7 @@ import (
 func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, secretText string, TeamID string, UserName string, ResponseUrl string, options ...SecretOption) error {
 	hc := c.Request.Context()
 
-	secretID := shortuuid.New()
+	secretID := rand.Text()
 
 	secretEncrypted, encryptErr := encrypt(secretText, secretID)
 
