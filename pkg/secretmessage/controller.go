@@ -8,8 +8,6 @@ import (
 	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretslack"
-	"go.elastic.co/apm/module/apmgin"
-	"go.elastic.co/apm/module/apmhttp"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -29,10 +27,9 @@ func NewController(config Config, db *gorm.DB, logger *zap.Logger) *PublicContro
 
 	slackService := secretslack.NewSlackService().
 		WithHTTPClient(
-			apmhttp.WrapClient(
-				&http.Client{
-					Timeout: 5 * time.Second},
-			)).
+			&http.Client{
+				Timeout: 5 * time.Second},
+		).
 		WithLogger(logger)
 
 	return &PublicController{
@@ -50,7 +47,7 @@ func (ctl *PublicController) ConfigureRoutes() *gin.Engine {
 	r.Use(ginzap.RecoveryWithZap(ctl.logger, true))
 
 	r.Use(otelgin.Middleware(os.Getenv("HOSTNAME")))
-	r.Use(apmgin.Middleware(r))
+
 	r.Use(func(c *gin.Context) {
 		c.Next()
 		db, err := ctl.db.DB()
