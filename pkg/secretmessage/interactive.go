@@ -58,11 +58,7 @@ func CallbackReadSecret(ctl *PublicController, c *gin.Context, i slack.Interacti
 	// Decrypt the secret
 	var secretDecrypted string
 	var decryptionErr error
-	if strings.Contains(secret.Value, ":") {
-		secretDecrypted, decryptionErr = decryptIV(secret.Value, ctl.config.LegacyCryptoKey)
-	} else {
-		secretDecrypted, decryptionErr = decrypt(secret.Value, secretID)
-	}
+	secretDecrypted, decryptionErr = decrypt(secret.Value, secretID)
 	if decryptionErr != nil {
 		ctl.logger.Error("error decrypting secret", zap.Error(decryptionErr), zap.String("secretID", secretID))
 		res, code := ctl.slackService.NewSlackErrorResponse(
