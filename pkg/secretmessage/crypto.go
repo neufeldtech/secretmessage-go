@@ -10,8 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"regexp"
-	"strings"
 	"unicode/utf8"
 )
 
@@ -89,37 +87,4 @@ func encryptWithReader(rr io.Reader, input string, passphrase string) (string, e
 	}
 	ciphertext := hex.EncodeToString(gcm.Seal(nonce, nonce, []byte(input), nil))
 	return ciphertext, nil
-}
-
-func decryptIV(input string, passphrase string) (string, error) {
-	var result string
-
-	re := regexp.MustCompile(`^[a-f0-9]{32}:`)
-	if !re.MatchString(input) {
-		return result, errors.New("input not in IV format")
-	}
-
-	input = strings.ReplaceAll(input, ":", "")
-
-	cipherTextDecoded, err := hex.DecodeString(input)
-	if err != nil {
-		panic(err)
-	}
-
-	block, err := aes.NewCipher([]byte(passphrase))
-	if err != nil {
-		return result, err
-	}
-
-	iv := cipherTextDecoded[:aes.BlockSize]
-	cipherTextBytes := []byte(cipherTextDecoded)
-
-	plaintext := make([]byte, len(cipherTextBytes)-aes.BlockSize)
-	stream := cipher.NewCTR(block, iv)
-	stream.XORKeyStream(plaintext, cipherTextBytes[aes.BlockSize:])
-	if !utf8.Valid(plaintext) {
-		return result, errors.New("decryption failed")
-	}
-	result = string(plaintext)
-	return result, nil
 }
