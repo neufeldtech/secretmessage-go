@@ -10,20 +10,19 @@ import (
 	"github.com/lithammer/shortuuid"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretmessage/actions"
 	"github.com/slack-go/slack"
-	"go.elastic.co/apm"
 	"go.uber.org/zap"
 )
 
 // PrepareAndSendSecretEnvelope encrypts the secret, stores in db, and sends the 'envelope' back to slack
-func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, tx *apm.Transaction, secretText string, TeamID string, UserName string, ResponseUrl string, options ...SecretOption) error {
+func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, secretText string, TeamID string, UserName string, ResponseUrl string, options ...SecretOption) error {
 	hc := c.Request.Context()
 
 	secretID := shortuuid.New()
-	tx.Context.SetLabel("secretIDHash", hash(secretID))
+
 	secretEncrypted, encryptErr := encrypt(secretText, secretID)
 
 	if encryptErr != nil {
-		tx.Context.SetLabel("errorCode", "encrypt_error")
+
 		ctl.logger.Error("error encrypting secret", zap.Error(encryptErr), zap.String("secretID", secretID))
 		return encryptErr
 	}
@@ -33,7 +32,7 @@ func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, tx *apm
 	storeErr := ctl.db.WithContext(hc).Create(sec).Error
 
 	if storeErr != nil {
-		tx.Context.SetLabel("errorCode", "db_store_error")
+
 		ctl.logger.Error("error storing secret in database", zap.Error(storeErr), zap.String("secretID", secretID))
 		return storeErr
 	}
@@ -59,11 +58,8 @@ func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, tx *apm
 		},
 	}
 
-	sendSpan := tx.StartSpan("send_message", "client_request", nil)
-	defer sendSpan.End()
 	sendMessageErr := ctl.slackService.SendResponseUrlMessage(hc, ResponseUrl, secretResponse)
 	if sendMessageErr != nil {
-		sendSpan.Context.SetLabel("errorCode", "send_message_error")
 		ctl.logger.Error("error sending secret to slack", zap.Error(sendMessageErr), zap.String("secretID", secretID))
 		return sendMessageErr
 	}
@@ -73,7 +69,7 @@ func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, tx *apm
 }
 
 // PromptCreateSecretModal encrypts the secret, stores in db, and sends the 'envelope' back to slack
-func PromptCreateSecretModal(ctl *PublicController, c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) error {
+func PromptCreateSecretModal(ctl *PublicController, c *gin.Context, s slack.SlashCommand) error {
 
 	datePicker := slack.NewDatePickerBlockElement("expiry_date_input")
 	datePicker.InitialDate = time.Now().AddDate(0, 0, 7).Format("2006-01-02")
@@ -110,7 +106,6 @@ func PromptCreateSecretModal(ctl *PublicController, c *gin.Context, tx *apm.Tran
 	if getTeamErr != nil {
 		ctl.logger.Error("error getting team for slash command", zap.Error(getTeamErr), zap.String("teamID", s.TeamID))
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"status": "Error with the stuffs"})
-		tx.Context.SetLabel("errorCode", "team_not_found")
 		return getTeamErr
 	}
 
@@ -127,21 +122,15 @@ func PromptCreateSecretModal(ctl *PublicController, c *gin.Context, tx *apm.Tran
 }
 
 // SlashSecret is the main entrypoint for the slash command /secret
-func SlashSecret(ctl *PublicController, c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) {
-
-	tx.Context.SetLabel("userHash", hash(s.UserID))
-	tx.Context.SetLabel("teamHash", hash(s.TeamID))
-	tx.Context.SetLabel("action", "createSecret")
-	tx.Context.SetLabel("slashCommand", "/secret")
-
+func SlashSecret(ctl *PublicController, c *gin.Context, s slack.SlashCommand) {
 	var err error
 	switch {
 	case strings.TrimSpace(s.Text) == "":
 		// If user provided no text, prompt them with modal
-		err = PromptCreateSecretModal(ctl, c, tx, s)
+		err = PromptCreateSecretModal(ctl, c, s)
 	default:
 		// If user provided text inline, do the old behaviour
-		err = PrepareAndSendSecretEnvelope(ctl, c, tx, s.Text, s.TeamID, s.UserName, s.ResponseURL)
+		err = PrepareAndSendSecretEnvelope(ctl, c, s.Text, s.TeamID, s.UserName, s.ResponseURL)
 	}
 	if err != nil {
 		ctl.logger.Error("error processing slash command", zap.Error(err))
@@ -157,12 +146,12 @@ func SlashSecret(ctl *PublicController, c *gin.Context, tx *apm.Transaction, s s
 	// Send empty Ack to Slack if we got here without errors
 	c.Data(http.StatusOK, gin.MIMEPlain, nil)
 
-	if AppReinstallNeeded(ctl, c, tx, s) {
-		SendReinstallMessage(ctl, c, tx, s)
+	if AppReinstallNeeded(ctl, c, s) {
+		SendReinstallMessage(ctl, c, s)
 	}
 }
 
-func AppReinstallNeeded(ctl *PublicController, c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) bool {
+func AppReinstallNeeded(ctl *PublicController, c *gin.Context, s slack.SlashCommand) bool {
 	var team Team
 	hc := c.Request.Context()
 	err := ctl.db.WithContext(hc).Where("id = ?", s.TeamID).First(&team).Error
@@ -173,7 +162,7 @@ func AppReinstallNeeded(ctl *PublicController, c *gin.Context, tx *apm.Transacti
 	return false
 }
 
-func SendReinstallMessage(ctl *PublicController, c *gin.Context, tx *apm.Transaction, s slack.SlashCommand) {
+func SendReinstallMessage(ctl *PublicController, c *gin.Context, s slack.SlashCommand) {
 	responseEphemeral := slack.Message{
 		Msg: slack.Msg{
 			ResponseType: slack.ResponseTypeEphemeral,

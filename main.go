@@ -10,11 +10,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretmessage"
-	_ "go.elastic.co/apm/module/apmgormv2"
-	postgres "go.elastic.co/apm/module/apmgormv2/driver/postgres"
+
 	"go.uber.org/zap"
 
 	"golang.org/x/oauth2"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
