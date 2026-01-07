@@ -6,10 +6,6 @@
       "required": true,
       "description": "Used by the app for keeping itself awake"
     },
-    "CRYPTO_KEY": {
-      "required": true,
-      "description": "legacy crypto key from node.js version of app"
-    },
     "GIN_MODE": {
       "required": false,
       "description": "GIN release mode"

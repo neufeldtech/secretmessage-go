@@ -24,7 +24,6 @@ var (
 	slackClientIDConfigKey            = "slackClientID"
 	slackClientSecretConfigKey        = "slackClientSecret"
 	slackCallbackURLConfigKey         = "slackCallbackURL"
-	legacyCryptoKeyConfigKey          = "legacyCryptoKey"
 	appURLConfigKey                   = "appURL"
 	databaseURL                       = "databaseURL"
 
@@ -33,7 +32,6 @@ var (
 		slackClientIDConfigKey:      os.Getenv("SLACK_CLIENT_ID"),
 		slackClientSecretConfigKey:  os.Getenv("SLACK_CLIENT_SECRET"),
 		slackCallbackURLConfigKey:   os.Getenv("SLACK_CALLBACK_URL"),
-		legacyCryptoKeyConfigKey:    os.Getenv("CRYPTO_KEY"),
 		appURLConfigKey:             os.Getenv("APP_URL"),
 		databaseURL:                 os.Getenv("DATABASE_URL"),
 	}
@@ -82,12 +80,11 @@ func main() {
 	}
 
 	conf := secretmessage.Config{
-		Port:            resolvePort(),
-		SlackToken:      "",
-		SigningSecret:   configMap[slackSigningSecretConfigKey],
-		AppURL:          configMap[appURLConfigKey],
-		LegacyCryptoKey: configMap[legacyCryptoKeyConfigKey],
-		DatabaseURL:     configMap[databaseURL],
+		Port:          resolvePort(),
+		SlackToken:    "",
+		SigningSecret: configMap[slackSigningSecretConfigKey],
+		AppURL:        configMap[appURLConfigKey],
+		DatabaseURL:   configMap[databaseURL],
 		OauthConfig: &oauth2.Config{
 			ClientID:     configMap[slackClientIDConfigKey],
 			ClientSecret: configMap[slackClientSecretConfigKey],
