@@ -103,11 +103,12 @@ func decrypt(input string, passphrase string) (string, error) {
 
 // encrypt wraps encryptWithReader
 func encrypt(input string, passphrase string) (string, error) {
-	return encryptWithReader(rand.Reader, input, passphrase)
+
+	return encryptWithReader(rand.Reader, input, passphrase, rand.Text())
 }
 
 // encryptWithReader takes an input string and passphrase and returns a hex-encoded encrypted string
-func encryptWithReader(rr io.Reader, input string, passphrase string) (string, error) {
+func encryptWithReader(rr io.Reader, input string, passphrase string, salt string) (string, error) {
 	var result string
 	if input == "" {
 		return result, fmt.Errorf("cannot encrypt empty string")
@@ -115,7 +116,6 @@ func encryptWithReader(rr io.Reader, input string, passphrase string) (string, e
 	if passphrase == "" {
 		return result, fmt.Errorf("cannot encrypt with empty passphrase")
 	}
-	salt := rand.Text()
 	key := deriveCryptoKeyV2(passphrase, salt)
 	c, err := aes.NewCipher(key)
 	if err != nil {

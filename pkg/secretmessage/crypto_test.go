@@ -119,6 +119,7 @@ func Test_encryptWithReader(t *testing.T) {
 		rr         io.Reader
 		input      string
 		passphrase string
+		salt       string
 	}
 	tests := []struct {
 		name    string
@@ -127,18 +128,19 @@ func Test_encryptWithReader(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "successful encryption",
+			name: "successful encryption with salt",
 			args: args{
 				rr:         bytes.NewReader([]byte("00000000000000000000000000000000")),
 				input:      "the password is baseball123",
 				passphrase: "monkey",
+				salt:       "VC4TZT7JZOAAVFQ3F3N7GXF2RP",
 			},
-			want: "v2$303030303030303030303030c2dfaa69afd91914a32ff6456e66736ce2939c76ac82c607cf06248a1a85ade9b526af3b6329dc50931337",
+			want: "v2$VC4TZT7JZOAAVFQ3F3N7GXF2RP$303030303030303030303030a091fd029ae527dfa9ed207ba09c537d8bdb5012f264f2a65d68a333fd58b378e5791a94d3060e919d4486",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := encryptWithReader(tt.args.rr, tt.args.input, tt.args.passphrase)
+			got, err := encryptWithReader(tt.args.rr, tt.args.input, tt.args.passphrase, tt.args.salt)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("encrypt() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -172,7 +174,7 @@ func Test_decrypt(t *testing.T) {
 		{
 			name: "successful decryption V2",
 			args: args{
-				input:      "v2$303030303030303030303030c2dfaa69afd91914a32ff6456e66736ce2939c76ac82c607cf06248a1a85ade9b526af3b6329dc50931337",
+				input:      "v2$VC4TZT7JZOAAVFQ3F3N7GXF2RP$303030303030303030303030a091fd029ae527dfa9ed207ba09c537d8bdb5012f264f2a65d68a333fd58b378e5791a94d3060e919d4486",
 				passphrase: "monkey",
 			},
 			want: "the password is baseball123",
