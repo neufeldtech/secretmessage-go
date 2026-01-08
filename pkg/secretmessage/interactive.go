@@ -20,7 +20,10 @@ func CallbackReadSecret(ctl *PublicController, c *gin.Context, i slack.Interacti
 	secretID := strings.ReplaceAll(i.CallbackID, fmt.Sprintf("%s:", actions.ReadMessage), "")
 	// Fetch secret
 	var secret Secret
-	getSecretErr := ctl.db.WithContext(hc).Where("id = ?", hash(secretID)).First(&secret).Error
+
+	// try to lookup secret by both old and new hashing
+	getSecretErr := ctl.db.WithContext(hc).Where("id in (?, ?)", secureSecretID(secretID), hash(secretID)).First(&secret).Error
+
 	var errTitle string
 	var errMsg string
 	var errCallback string
@@ -32,7 +35,7 @@ func CallbackReadSecret(ctl *PublicController, c *gin.Context, i slack.Interacti
 		errMsg = "This Secret has expired"
 		errCallback = "secret_expired"
 		deleteOriginal = true
-		ctl.db.WithContext(hc).Unscoped().Where("id = ?", hash(secretID)).Delete(Secret{})
+		ctl.db.WithContext(hc).Unscoped().Where("id = ?", secret.ID).Delete(Secret{})
 	case getSecretErr == gorm.ErrRecordNotFound:
 		errTitle = ":question: Secret not found"
 		errMsg = "This Secret has already been retrieved or has expired"
@@ -104,7 +107,7 @@ func CallbackReadSecret(ctl *PublicController, c *gin.Context, i slack.Interacti
 	}
 	c.Data(http.StatusOK, gin.MIMEJSON, responseBytes)
 
-	if delSecretErr := ctl.db.WithContext(hc).Unscoped().Where("id = ?", hash(secretID)).Delete(Secret{}).Error; delSecretErr != nil {
+	if delSecretErr := ctl.db.WithContext(hc).Unscoped().Where("id = ?", secret.ID).Delete(Secret{}).Error; delSecretErr != nil {
 		ctl.logger.Error("error deleting secret after retrieval", zap.Error(delSecretErr), zap.String("secretID", secretID))
 	}
 }

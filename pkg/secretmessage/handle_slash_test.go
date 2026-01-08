@@ -94,7 +94,7 @@ var _ = Describe("/secret", func() {
 			var s secretmessage.Secret
 			gdb.Take(&s)
 			Expect(s.ID).To(MatchRegexp(`^[a-f0-9]{64}$`))
-			Expect(s.Value).To(MatchRegexp(`^[a-f0-9]{1,}$`))
+			Expect(s.Value).To(MatchRegexp(`^v2\$[A-Z0-9]{1,}\$[a-f0-9]{1,}$`))
 		})
 	})
 

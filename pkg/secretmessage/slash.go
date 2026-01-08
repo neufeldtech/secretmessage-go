@@ -28,7 +28,7 @@ func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, secretT
 		return encryptErr
 	}
 
-	sec := NewSecret(hash(secretID), secretEncrypted, options...)
+	sec := NewSecret(secureSecretID(secretID), secretEncrypted, options...)
 	// Store the secret
 	storeErr := ctl.db.WithContext(hc).Create(sec).Error
 

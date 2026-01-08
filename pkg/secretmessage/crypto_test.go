@@ -2,7 +2,6 @@ package secretmessage
 
 import (
 	"bytes"
-	"encoding/hex"
 	"io"
 	"reflect"
 	"testing"
@@ -34,11 +33,36 @@ func Test_hash(t *testing.T) {
 	}
 }
 
+func Test_secureSecretID(t *testing.T) {
+	type args struct {
+		s string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "should return argon2 hash as hex",
+			args: args{
+				s: "my input string",
+			},
+			want: "268aa12ad29ed592c4e73e727fc2152bb5f1edf343c61a9f5bf00d0c14b0a572",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := secureSecretID(tt.args.s); got != tt.want {
+				t.Errorf("secureSecretID() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func Test_deriveCryptoKey(t *testing.T) {
 	type args struct {
 		key string
 	}
-	w, _ := hex.DecodeString("8af774dc91d8be77e2baccfb8856c103")
 	tests := []struct {
 		name string
 		args args
@@ -49,13 +73,41 @@ func Test_deriveCryptoKey(t *testing.T) {
 			args: args{
 				key: "my input string",
 			},
-			want: w,
+			want: []byte{138, 247, 116, 220, 145, 216, 190, 119, 226, 186, 204, 251, 136, 86, 193, 3},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := deriveCryptoKey(tt.args.key); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("deriveCryptoKey() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+func Test_deriveCryptoKeyV2(t *testing.T) {
+	type args struct {
+		key  string
+		salt string
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want []byte
+	}{
+		{
+			name: "should return argon2 byte slice",
+			args: args{
+				key:  "my input string",
+				salt: "DZNUVLZNJVR3HOWSZPM2DEEKQ3",
+			},
+			want: []byte{86, 190, 230, 34, 101, 60, 153, 105, 175, 164, 186, 225, 142, 50, 228, 245, 103, 115, 222, 104, 57, 160, 91, 32, 64, 134, 165, 228, 139, 67, 11, 173},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := deriveCryptoKeyV2(tt.args.key, tt.args.salt); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("deriveCryptoKeyV2() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -77,11 +129,11 @@ func Test_encryptWithReader(t *testing.T) {
 		{
 			name: "successful encryption",
 			args: args{
-				rr:         bytes.NewReader([]byte("0000000000000000")),
+				rr:         bytes.NewReader([]byte("00000000000000000000000000000000")),
 				input:      "the password is baseball123",
 				passphrase: "monkey",
 			},
-			want: "30303030303030303030303029c9922a9be75ba2e6be5afd32d19387baea51fa577c0c51dc9809a54adb9085490f109237d15a3262a585",
+			want: "v2$303030303030303030303030c2dfaa69afd91914a32ff6456e66736ce2939c76ac82c607cf06248a1a85ade9b526af3b6329dc50931337",
 		},
 	}
 	for _, tt := range tests {
@@ -110,9 +162,17 @@ func Test_decrypt(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "successful decryption",
+			name: "successful decryption V1",
 			args: args{
 				input:      "30303030303030303030303029c9922a9be75ba2e6be5afd32d19387baea51fa577c0c51dc9809a54adb9085490f109237d15a3262a585",
+				passphrase: "monkey",
+			},
+			want: "the password is baseball123",
+		},
+		{
+			name: "successful decryption V2",
+			args: args{
+				input:      "v2$303030303030303030303030c2dfaa69afd91914a32ff6456e66736ce2939c76ac82c607cf06248a1a85ade9b526af3b6329dc50931337",
 				passphrase: "monkey",
 			},
 			want: "the password is baseball123",
