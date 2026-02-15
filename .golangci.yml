@@ -1,0 +1,77 @@
+run:
+  timeout: 3m
+  tests: true
+
+linters:
+  enable:
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - cyclop
+    - decorder
+    - depguard
+    - dogsled
+    - durationcheck
+    - errchkjson
+    - errname
+    - errorlint
+    - exhaustive
+    - exportloopref
+    - forbidigo
+    - forcetypeassert
+    - funlen
+    - gochecknoinits
+    - gocognit
+    - goconst
+    - gocritic
+    - gocyclo
+    - godot
+    - godox
+    - gofmt
+    - gofumpt
+    - goheader
+    - goimports
+    - gomnd
+    - gomodguard
+    - goprintffuncname
+    - gosec
+    - govet
+    - grouper
+    - ifshort
+    - importas
+    - ireturn
+    - maintidx
+    - makezero
+    - megacheck
+    - misspell
+    - nakedret
+    - nilerr
+    - nilnil
+    - noctx
+    - nolintlint
+    - prealloc
+    - predeclared
+    - promlinter
+    - revive
+    - rowserrcheck
+    - sqlclosecheck
+    - stylecheck
+    - tenv
+    - testpackage
+    - thelper
+    - tparallel
+    - unconvert
+    - unparam
+    - wastedassign
+    - whitespace
+  disable:
+    # Disabled with a reason
+    - maligned # checker not supported anymore
+    - tagliatelle # disabled because we are dependant on external API that do not follow the right naming
+    - exhaustivestruct # First iteration of golang-ci (easier to disable for now)
+    - goerr113 # First iteration of golang-ci (easier to disable for now)
+    - lll # First iteration of golang-ci (easier to disable for now)
+    - paralleltest # First iteration of golang-ci (easier to disable for now)
+    - nestif # First iteration of golang-ci (easier to disable for now)
+    - dupl # Handlers are too common but I don't want to refacto now
+    - gomoddirectives # csq package

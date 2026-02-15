@@ -1,11 +1,5 @@
-bin
-.env
-.urlenv
-tmp
-secretmessage-go
-dump.rdb
-wishlist.md
-nohup.out
-manifest.yaml
-secrets.json
-.devcontainer/.env
+secretmessage
+!secretmessage/
+.vscode/
+secretmessage.yaml
+app_manifest.yaml
