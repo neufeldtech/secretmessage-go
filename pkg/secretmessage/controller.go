@@ -2,13 +2,11 @@ package secretmessage
 
 import (
 	"net/http"
-	"os"
 	"time"
 
 	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
 	"github.com/neufeldtech/secretmessage-go/pkg/secretslack"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -45,8 +43,6 @@ func (ctl *PublicController) ConfigureRoutes() *gin.Engine {
 	r := gin.New()
 	r.Use(ginzap.Ginzap(ctl.logger, time.RFC3339, true))
 	r.Use(ginzap.RecoveryWithZap(ctl.logger, true))
-
-	r.Use(otelgin.Middleware(os.Getenv("HOSTNAME")))
 
 	r.Use(func(c *gin.Context) {
 		c.Next()

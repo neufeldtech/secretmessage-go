@@ -62,15 +62,8 @@ func main() {
 		logger = zap.Must(zap.NewProduction())
 	}
 
-	tp, err := secretmessage.InitTracer(secretmessage.ServiceName)
-	if err != nil {
-		logger.Fatal(err.Error())
-	}
 	defer func() {
 		logger.Sync()
-		if err := tp.Shutdown(context.Background()); err != nil {
-			logger.Error("error shutting down trace provider", zap.Error(err))
-		}
 	}()
 
 	for k, v := range configMap {
