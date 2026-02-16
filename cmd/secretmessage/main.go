@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 
 	"strconv"
@@ -28,12 +27,11 @@ var (
 	databaseURL                       = "databaseURL"
 
 	configMap = map[string]string{
-		slackSigningSecretConfigKey: os.Getenv("SLACK_SIGNING_SECRET"),
+		slackSigningSecretConfigKey: os.Getenv("SLACK_SECRET"),
 		slackClientIDConfigKey:      os.Getenv("SLACK_CLIENT_ID"),
 		slackClientSecretConfigKey:  os.Getenv("SLACK_CLIENT_SECRET"),
 		slackCallbackURLConfigKey:   os.Getenv("SLACK_CALLBACK_URL"),
-		appURLConfigKey:             os.Getenv("APP_URL"),
-		databaseURL:                 os.Getenv("DATABASE_URL"),
+		appURLConfigKey:             os.Getenv("SLACK_APP_URL"),
 	}
 )
 
@@ -71,6 +69,10 @@ func main() {
 			logger.Fatal("error initializing config", zap.String("key", k), zap.String("value", v))
 		}
 	}
+
+	configMap[databaseURL] = fmt.Sprintf(
+		"postgres://%s:%s@%s/%s", os.Getenv("DATABASE_USERNAME"), os.Getenv("DATABASE_PASSWORD"), os.Getenv("DATABASE_HOST"), os.Getenv("DATABASE_NAME"),
+	)
 
 	conf := secretmessage.Config{
 		Port:          resolvePort(),
