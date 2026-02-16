@@ -72,6 +72,7 @@ func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, secretT
 
 }
 
+// Unused for now
 // PromptCreateSecretModal encrypts the secret, stores in db, and sends the 'envelope' back to slack
 func PromptCreateSecretModal(ctl *PublicController, c *gin.Context, s slack.SlashCommand) error {
 
@@ -128,14 +129,17 @@ func PromptCreateSecretModal(ctl *PublicController, c *gin.Context, s slack.Slas
 // SlashSecret is the main entrypoint for the slash command /secret
 func SlashSecret(ctl *PublicController, c *gin.Context, s slack.SlashCommand) {
 	var err error
-	switch {
-	case strings.TrimSpace(s.Text) == "":
-		// If user provided no text, prompt them with modal
-		err = PromptCreateSecretModal(ctl, c, s) // @Todo: remove this and related code
-	default:
-		// If user provided text inline, do the old behaviour
-		err = PrepareAndSendSecretEnvelope(ctl, c, s.Text, s.TeamID, s.UserName, s.ResponseURL)
+	if strings.TrimSpace(s.Text) == "" {
+		res, code := ctl.slackService.NewSlackErrorResponse(
+			"Error: secret text is empty",
+			"It looks like you tried to send a secret but forgot to provide the secret's text. You can send a secret like this: `/secret I am scared of heights`",
+			false,
+			"secret_text_empty")
+		c.Data(code, gin.MIMEJSON, res)
+		c.Abort()
+		return
 	}
+	err = PrepareAndSendSecretEnvelope(ctl, c, s.Text, s.TeamID, s.UserName, s.ResponseURL)
 	if err != nil {
 		ctl.logger.Error("error processing slash command", zap.Error(err))
 		res, code := ctl.slackService.NewSlackErrorResponse(
