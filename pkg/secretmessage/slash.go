@@ -29,6 +29,7 @@ func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, secretT
 	}
 
 	sec := NewSecret(hash(secretID), secretEncrypted, options...)
+	sec.ExpiresAt = time.Now().Add(time.Second * time.Duration(ctl.config.ExpirationTime))
 	// Store the secret
 	storeErr := ctl.db.WithContext(hc).Create(sec).Error
 
@@ -37,6 +38,8 @@ func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, secretT
 		ctl.logger.Error("error storing secret in database", zap.Error(storeErr), zap.String("secretID", secretID))
 		return storeErr
 	}
+
+	go FlushExpiredSecrets(ctl, sec)
 
 	footerMsg := fmt.Sprintf("Message expires <!date^%d^{date_pretty}|%s>", sec.ExpiresAt.Unix(), sec.ExpiresAt.Format("2006-01-02 15:04 MST"))
 
@@ -128,7 +131,7 @@ func SlashSecret(ctl *PublicController, c *gin.Context, s slack.SlashCommand) {
 	switch {
 	case strings.TrimSpace(s.Text) == "":
 		// If user provided no text, prompt them with modal
-		err = PromptCreateSecretModal(ctl, c, s)
+		err = PromptCreateSecretModal(ctl, c, s) // @Todo: remove this and related code
 	default:
 		// If user provided text inline, do the old behaviour
 		err = PrepareAndSendSecretEnvelope(ctl, c, s.Text, s.TeamID, s.UserName, s.ResponseURL)

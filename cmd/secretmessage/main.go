@@ -18,13 +18,14 @@ import (
 )
 
 var (
-	defaultPort                 int64 = 8080
-	slackSigningSecretConfigKey       = "slackSigningSecret"
-	slackClientIDConfigKey            = "slackClientID"
-	slackClientSecretConfigKey        = "slackClientSecret"
-	slackCallbackURLConfigKey         = "slackCallbackURL"
-	appURLConfigKey                   = "appURL"
-	databaseURL                       = "databaseURL"
+	defaultPort                  int64 = 8080
+	defaultExpirationTimeSeconds int64 = 86400
+	slackSigningSecretConfigKey        = "slackSigningSecret"
+	slackClientIDConfigKey             = "slackClientID"
+	slackClientSecretConfigKey         = "slackClientSecret"
+	slackCallbackURLConfigKey          = "slackCallbackURL"
+	appURLConfigKey                    = "appURL"
+	databaseURL                        = "databaseURL"
 
 	configMap = map[string]string{
 		slackSigningSecretConfigKey: os.Getenv("SLACK_SECRET"),
@@ -34,6 +35,19 @@ var (
 		appURLConfigKey:             os.Getenv("SLACK_APP_URL"),
 	}
 )
+
+func resolveExpirationTime() int64 {
+
+	expirationTimeString := os.Getenv("EXPIRATION_TIME")
+	if expirationTimeString == "" {
+		return defaultExpirationTimeSeconds
+	}
+	expirationTime64, err := strconv.ParseInt(expirationTimeString, 10, 64)
+	if err != nil {
+		return defaultExpirationTimeSeconds
+	}
+	return expirationTime64
+}
 
 func resolvePort() int64 {
 
@@ -75,11 +89,12 @@ func main() {
 	)
 
 	conf := secretmessage.Config{
-		Port:          resolvePort(),
-		SlackToken:    "",
-		SigningSecret: configMap[slackSigningSecretConfigKey],
-		AppURL:        configMap[appURLConfigKey],
-		DatabaseURL:   configMap[databaseURL],
+		Port:           resolvePort(),
+		SlackToken:     "",
+		SigningSecret:  configMap[slackSigningSecretConfigKey],
+		AppURL:         configMap[appURLConfigKey],
+		DatabaseURL:    configMap[databaseURL],
+		ExpirationTime: resolveExpirationTime(),
 		OauthConfig: &oauth2.Config{
 			ClientID:     configMap[slackClientIDConfigKey],
 			ClientSecret: configMap[slackClientSecretConfigKey],

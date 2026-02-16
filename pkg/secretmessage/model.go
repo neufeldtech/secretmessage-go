@@ -42,6 +42,9 @@ func NewSecret(id string, value string, opts ...SecretOption) *Secret {
 		opt(secret)
 	}
 
+	// All of the below code is overridder by the caller where
+	// it sets the expiry to current time + expiration_time
+	// This code is useless
 	if secret.ExpiresAt.IsZero() {
 		// Default to 7 days expiry if not provided
 		secret.ExpiresAt = time.Now().AddDate(0, 0, 7)
