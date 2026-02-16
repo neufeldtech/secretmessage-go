@@ -33,26 +33,28 @@ Forked from [HERE](https://github.com/neufeldtech/secret-message)
 - Set interactivity URL from https://api.slack.com/apps/${APP_ID}/interactive-messages <img src="assets/02_cfg_inter.png" width="500">
 - Set redirect URLs and bot scopes from https://api.slack.com/apps/${APP_ID}/oauth <img src="assets/03_cfg_oauth.png" width="500">
 
-### Setup bot config file
-The config file is handled [here](config/config.yaml)
-```yaml
-slack:
-  appURL:               # Base URL of the bot
-  signingSecret:        # Slack signing secret (https://api.slack.com/apps/${APP_ID}/general)
-  clientID:             # Slack client ID (https://api.slack.com/apps/${APP_ID}/general)
-  clientSecret:         # Slack client secret (https://api.slack.com/apps/${APP_ID}/general)
-  callbackURL:          # Callback URL (https://${APP_URL}/auth/slack/callback)
-  token:                # Slack verification token (https://api.slack.com/apps/${APP_ID}/general)
-server:
-  port:                 # Bot webserver port
-database:
-  name:                 # Database name
-  host:                 # Database host/address
-  username:             # Database user
-  password:             # Database password
-core:
-  cryptoKey:            # Message hashing string
-  expirationTime:       # Expiration time of message in database (in seconds)
+### ENV Configuration
+
+The following environment variables are required to run the application:
+
+#### Slack Configuration
+- `SLACK_SECRET` - The signing secret for your Slack app (required). Used to verify that requests are coming from Slack.
+- `SLACK_CLIENT_ID` - The OAuth client ID from your Slack app (required). Used for OAuth authentication.
+- `SLACK_CLIENT_SECRET` - The OAuth client secret from your Slack app (required). Used for OAuth token exchange.
+- `SLACK_CALLBACK_URL` - The OAuth redirect URL where Slack will send users after they authorize (required). Should point to your `/slack/oauth/callback` endpoint.
+- `SLACK_APP_URL` - The publicly accessible URL of your application (required). Used for generating links and redirects in Slack messages.
+
+#### Database Configuration
+- `DATABASE_USERNAME` - PostgreSQL database username (required).
+- `DATABASE_PASSWORD` - PostgreSQL database password (required).
+- `DATABASE_HOST` - PostgreSQL database host (required). 
+- `DATABASE_NAME` - PostgreSQL database name (required).
+
+#### Optional Configuration
+- `SERVER_PORT` - The port the application listens on (optional, defaults to `8080`).
+- `EXPIRATION_TIME` - Message expiration time in seconds (optional, defaults to `86400` - 24 hours).
+
+
 ```
 
 ### Build and run the app

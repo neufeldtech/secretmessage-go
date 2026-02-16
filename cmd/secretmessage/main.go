@@ -51,7 +51,7 @@ func resolveExpirationTime() int64 {
 
 func resolvePort() int64 {
 
-	portString := os.Getenv("PORT")
+	portString := os.Getenv("SERVER_PORT")
 	if portString == "" {
 		return defaultPort
 	}
@@ -65,14 +65,8 @@ func resolvePort() int64 {
 func main() {
 
 	var logger *zap.Logger
-	switch {
-	case os.Getenv("APP_ENV") == "development":
-		logger = zap.Must(zap.NewDevelopment())
-		gin.SetMode(gin.DebugMode)
-	default:
-		gin.SetMode(gin.ReleaseMode)
-		logger = zap.Must(zap.NewProduction())
-	}
+	gin.SetMode(gin.ReleaseMode)
+	logger = zap.Must(zap.NewProduction())
 
 	defer func() {
 		logger.Sync()
