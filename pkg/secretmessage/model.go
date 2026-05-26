@@ -9,16 +9,17 @@ import (
 
 type Secret struct {
 	gorm.Model
-	ID        string
+	ID        string `gorm:"uniqueIndex"`
 	ExpiresAt time.Time
 	Value     string
+	TeamId    string `gorm:"index"`
 }
 
 type SecretOption func(*Secret) *Secret
 
 type Team struct {
 	gorm.Model
-	ID          string
+	ID          string `gorm:"uniqueIndex"`
 	AccessToken string
 	Scope       string
 	Name        string
@@ -28,6 +29,13 @@ type Team struct {
 func WithExpiryDate(expiryDate time.Time) SecretOption {
 	return func(s *Secret) *Secret {
 		s.ExpiresAt = expiryDate
+		return s
+	}
+}
+
+func WithTeam(teamID string) SecretOption {
+	return func(s *Secret) *Secret {
+		s.TeamId = teamID
 		return s
 	}
 }
