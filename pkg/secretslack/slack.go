@@ -15,16 +15,13 @@ import (
 )
 
 type SlackService struct {
-	apiClients map[string]*slack.Client
-	mux        sync.Mutex
+	apiClients sync.Map // safe for concurrent use
 	httpClient *http.Client
 	logger     *zap.Logger
 }
 
 func NewSlackService() *SlackService {
 	return &SlackService{
-		apiClients: make(map[string]*slack.Client),
-		mux:        sync.Mutex{},
 		logger:     zap.Must(zap.NewProduction()),
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
@@ -47,16 +44,13 @@ func (srv *SlackService) WithLogger(logger *zap.Logger) *SlackService {
 }
 
 func (srv *SlackService) GetSlackClient(token string) *slack.Client {
-	srv.mux.Lock()
-	defer srv.mux.Unlock()
-
-	if client, exists := srv.apiClients[token]; exists {
-		return client
+	if client, exists := srv.apiClients.Load(token); exists {
+		return client.(*slack.Client)
 	}
 
 	client := slack.New(token, slack.OptionDebug(true))
-	srv.apiClients[token] = client
-	return client
+	actual, _ := srv.apiClients.LoadOrStore(token, client)
+	return actual.(*slack.Client)
 }
 
 // SendResponseUrlMessage sends a slack message via a response_url - It does not require a token
