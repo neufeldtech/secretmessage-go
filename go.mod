@@ -4,7 +4,7 @@ module github.com/neufeldtech/secretmessage-go
 go 1.25.0
 
 require (
-	github.com/gin-contrib/zap v1.1.5
+	github.com/gin-contrib/zap v1.1.7
 	github.com/gin-gonic/gin v1.12.0
 	github.com/jarcoal/httpmock v1.4.1
 	github.com/onsi/ginkgo v1.16.5
