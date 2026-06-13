@@ -11,6 +11,6 @@ func (ctl *PublicController) HandleOauthBegin(c *gin.Context) {
 	state := rand.Text()
 	url := ctl.config.OauthConfig.AuthCodeURL(state, oauth2.AccessTypeOnline)
 
-	c.SetCookie("state", state, 0, "", "", false, true)
+	c.SetCookie("state", state, 0, "", "", true, true)
 	c.Redirect(302, url)
 }
