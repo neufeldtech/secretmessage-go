@@ -12,4 +12,6 @@ type Config struct {
 	AppURL                  string
 	OauthConfig             *oauth2.Config
 	DatabaseURL             string
+	ShutdownNotice          string
+	SurveyLink              string
 }

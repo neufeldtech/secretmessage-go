@@ -80,7 +80,13 @@ func CallbackReadSecret(ctl *PublicController, c *gin.Context, i slack.Interacti
 				Text:       secretDecrypted,
 				CallbackID: fmt.Sprintf("%s:%v", actions.DeleteMessage, secretID),
 				Color:      "#6D5692",
-				Footer:     "The above message is only visible to you and will disappear when your Slack client reloads. To remove it immediately, press the delete button",
+				Footer: func() string {
+					footerText := "The above message is only visible to you and will disappear when your Slack client reloads. To remove it immediately, press the delete button"
+					if notice := ctl.GetShutdownNotice(); notice != "" {
+						return fmt.Sprintf("%s\n%s", footerText, notice)
+					}
+					return footerText
+				}(),
 				Actions: []slack.AttachmentAction{{
 					Name:  "removeMessage",
 					Text:  ":x: Delete message",

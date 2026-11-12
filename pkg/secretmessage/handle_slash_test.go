@@ -97,6 +97,31 @@ var _ = Describe("/secret", func() {
 			Expect(s.Value).To(MatchRegexp(`^[a-f0-9]{1,}$`))
 		})
 	})
+	Context("with shutdown notice configured via survey link", func() {
+		var capturedMessage slack.Message
+		BeforeEach(func() {
+			ctl = secretmessage.NewController(
+				secretmessage.Config{
+					SkipSignatureValidation: true,
+					SurveyLink:              "https://secretmessage.xyz",
+				},
+				gdb,
+				nil,
+			)
+			httpmock.RegisterResponder("POST", responseURL, func(req *http.Request) (*http.Response, error) {
+				body, _ := ioutil.ReadAll(req.Body)
+				json.Unmarshal(body, &capturedMessage)
+				return httpmock.NewStringResponse(200, "ok"), nil
+			})
+			gdb.Create(&secretmessage.Team{ID: teamID, AccessToken: accessToken})
+		})
+		It("should include the shutdown notice in the envelope footer", func() {
+			Expect(len(capturedMessage.Attachments)).To(BeNumerically(">", 0))
+			Expect(capturedMessage.Attachments[0].Footer).To(ContainSubstring("The hosted service (secretmessage.xyz Slack app) will be shutting down after Dec 31st 2026"))
+			Expect(capturedMessage.Attachments[0].Footer).To(ContainSubstring("https://secretmessage.xyz"))
+		})
+	})
+
 
 	Context("on happy path with team not in DB", func() {
 		BeforeEach(func() {
