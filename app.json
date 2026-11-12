@@ -29,6 +29,14 @@
     "SLACK_SIGNING_SECRET": {
       "required": true,
       "description": "Slack signing secret"
+    },
+    "SHUTDOWN_NOTICE": {
+      "required": false,
+      "description": "Shutdown notice text, URL, or boolean (true/false) served to users"
+    },
+    "SURVEY_LINK": {
+      "required": false,
+      "description": "URL or link for shutdown notice or survey"
     }
   },
   "formation": {

@@ -39,6 +39,9 @@ func PrepareAndSendSecretEnvelope(ctl *PublicController, c *gin.Context, secretT
 	}
 
 	footerMsg := fmt.Sprintf("Message expires <!date^%d^{date_pretty}|%s>", sec.ExpiresAt.Unix(), sec.ExpiresAt.Format("2006-01-02 15:04 MST"))
+	if notice := ctl.GetShutdownNotice(); notice != "" {
+		footerMsg = fmt.Sprintf("%s\n%s", footerMsg, notice)
+	}
 
 	secretResponse := slack.Message{
 		Msg: slack.Msg{
@@ -83,8 +86,15 @@ func PromptCreateSecretModal(ctl *PublicController, c *gin.Context, s slack.Slas
 		Close:           slack.NewTextBlockObject("plain_text", "Cancel", false, false),
 		Submit:          slack.NewTextBlockObject("plain_text", "Send", false, false),
 		PrivateMetadata: s.ResponseURL,
-		Blocks: slack.Blocks{
-			BlockSet: []slack.Block{
+		Blocks: func() slack.Blocks {
+			var blocks []slack.Block
+			if notice := ctl.GetShutdownNotice(); notice != "" {
+				blocks = append(blocks, slack.NewContextBlock(
+					"shutdown_notice",
+					slack.NewTextBlockObject("mrkdwn", notice, false, false),
+				))
+			}
+			blocks = append(blocks,
 				slack.NewInputBlock(
 					"secret_text_input",
 					slack.NewTextBlockObject("plain_text", "Secret Text", false, false),
@@ -97,8 +107,9 @@ func PromptCreateSecretModal(ctl *PublicController, c *gin.Context, s slack.Slas
 					slack.NewTextBlockObject("plain_text", "Expiry date is limited to a maximum of 30 days from today", false, false),
 					datePicker,
 				),
-			},
-		},
+			)
+			return slack.Blocks{BlockSet: blocks}
+		}(),
 	}
 
 	team := Team{}

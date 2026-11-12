@@ -84,6 +84,28 @@ var _ = Describe("/interactive", func() {
 				Expect(tx.RowsAffected).To(BeEquivalentTo(0))
 			})
 		})
+		Context("on happy path with shutdown notice", func() {
+			BeforeEach(func() {
+				ctl = secretmessage.NewController(
+					secretmessage.Config{
+						SkipSignatureValidation: true,
+						SurveyLink:              "https://secretmessage.xyz",
+					},
+					gdb,
+					nil,
+				)
+				tx := gdb.Create(&secretmessage.Secret{ID: secretIDHashed, Value: encryptedPayload, ExpiresAt: time.Now().Add(time.Hour)})
+				Expect(tx.RowsAffected).To(BeEquivalentTo(1))
+			})
+			It("should include shutdown notice in footer", func() {
+				var msg slack.Message
+				b, _ := ioutil.ReadAll(serverResponse.Body)
+				json.Unmarshal(b, &msg)
+				Expect(serverResponse.Code).To(Equal(http.StatusOK))
+				Expect(msg.Attachments[0].Footer).To(ContainSubstring("The hosted service (secretmessage.xyz Slack app) will be shutting down after Dec 31st 2026"))
+			})
+		})
+
 		Context("on secret not found in DB", func() {
 			BeforeEach(func() {
 				var s secretmessage.Secret

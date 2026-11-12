@@ -1,3 +1,11 @@
+# ⚠️ SHUTDOWN NOTICE ⚠️
+
+> # **IMPORTANT: HOSTED SERVICE SHUTDOWN & REPOSITORY ARCHIVAL**
+>
+> ## **The hosted service (secretmessage.xyz Slack app) will be shutting down after Dec 31st 2026 and this repo will be archived at that time as well.**
+
+---
+
 # Secret Message <img src="https://raw.githubusercontent.com/neufeldtech/secretmessage-website/main/html/images/logo.png" width="25px"></img>
 
 [![CircleCI](https://dl.circleci.com/status-badge/img/gh/neufeldtech/secretmessage-go/tree/main.svg?style=svg)](https://dl.circleci.com/status-badge/redirect/gh/neufeldtech/secretmessage-go/tree/main)
